@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="23G93" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="CareLog" representedClassName="CareLog" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudKitRecordID" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isCompleted" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="performedBy" optional="YES" attributeType="String"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+        <relationship name="pet" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Pet" inverseName="careLogs" inverseEntity="Pet"/>
+    </entity>
+    <entity name="FeedingLog" representedClassName="FeedingLog" syncable="YES" codeGenerationType="class">
+        <attribute name="amount" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="attribute" optional="YES"/>
+        <attribute name="attribute1" optional="YES"/>
+        <attribute name="cloudKitRecordID" optional="YES" attributeType="String"/>
+        <attribute name="foodType" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="performedBy" optional="YES" attributeType="String"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="unit" optional="YES" attributeType="String"/>
+        <relationship name="pet" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Pet" inverseName="feedingLogs" inverseEntity="Pet"/>
+    </entity>
+    <entity name="HealthLog" representedClassName="HealthLog" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudKitRecordID" optional="YES" attributeType="String"/>
+        <attribute name="condition" optional="YES" attributeType="String"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="medication" optional="YES" attributeType="String"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="symptoms" optional="YES" attributeType="String"/>
+        <relationship name="pet" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Pet" inverseName="healthLogs" inverseEntity="Pet"/>
+    </entity>
+    <entity name="Pet" representedClassName="Pet" syncable="YES" codeGenerationType="class">
+        <attribute name="birthDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="breed" optional="YES" attributeType="String"/>
+        <attribute name="cloudKitRecordID" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="gender" optional="YES" attributeType="String"/>
+        <attribute name="iconImageData" optional="YES" attributeType="Binary"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isActive" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="species" optional="YES" attributeType="String"/>
+        <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="careLogs" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CareLog" inverseName="pet" inverseEntity="CareLog"/>
+        <relationship name="feedingLogs" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="FeedingLog" inverseName="pet" inverseEntity="FeedingLog"/>
+        <relationship name="healthLogs" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="HealthLog" inverseName="pet" inverseEntity="HealthLog"/>
+        <relationship name="vaccinations" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Vaccination" inverseName="pet" inverseEntity="Vaccination"/>
+        <relationship name="weightLogs" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WeightLog" inverseName="pet" inverseEntity="WeightLog"/>
+    </entity>
+    <entity name="Vaccination" representedClassName="Vaccination" syncable="YES" codeGenerationType="class">
+        <attribute name="clinicName" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="cloudKitRecordID" optional="YES" attributeType="String"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="expiryDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="reminderDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="vetName" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="pet" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Pet" inverseName="vaccinations" inverseEntity="Pet"/>
+    </entity>
+    <entity name="WeightLog" representedClassName="WeightLog" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudKitRecordID" optional="YES" attributeType="String"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="unit" optional="YES" attributeType="String"/>
+        <attribute name="weight" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="pet" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Pet" inverseName="weightLogs" inverseEntity="Pet"/>
+    </entity>
+</model>
