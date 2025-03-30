@@ -58,8 +58,8 @@ struct FeedingLogView: View {
                     }
                 })
             }
-            .onChange(of: petViewModel.selectedPet) { newValue in
-                if let petId = newValue?.id {
+            .onChange(of: petViewModel.selectedPet) { newPet in
+                if let petId = newPet?.id {
                     fetchLogsForSelectedDate(petId: petId)
                 }
             }

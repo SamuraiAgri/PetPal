@@ -65,8 +65,8 @@ struct FeedingScheduleView: View {
                     }
                 })
             }
-            .onChange(of: petViewModel.selectedPet) { _ in
-                if let petId = petViewModel.selectedPet?.id {
+            .onChange(of: petViewModel.selectedPet) { newPet in
+                if let petId = newPet?.id {
                     fetchLogsForSelectedDate(petId: petId)
                 }
             }

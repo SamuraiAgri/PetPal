@@ -188,7 +188,4 @@ class CloudKitManager {
         
         completion(.success(petModel))
     }
-    
-    // 以下に CareLog, FeedingLog, HealthLog などの同様の操作を実装
-    // (紙面の都合で省略しますが、実際には同様のパターンで実装します)
 }
