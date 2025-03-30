@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct FeedingLogView: View {
     @ObservedObject var petViewModel: PetViewModel
@@ -57,8 +58,8 @@ struct FeedingLogView: View {
                     }
                 })
             }
-            .onChange(of: petViewModel.selectedPet) { _ in
-                if let petId = petViewModel.selectedPet?.id {
+            .onChange(of: petViewModel.selectedPet) { newValue in
+                if let petId = newValue?.id {
                     fetchLogsForSelectedDate(petId: petId)
                 }
             }
@@ -98,81 +99,83 @@ struct FeedingLogView: View {
     
     // 日付とフィルターセレクタ
     private var dateAndFilterView: some View {
-        HStack {
-            // 日付選択ボタン
-            Button(action: {
-                showingDatePicker.toggle()
-            }) {
-                HStack {
-                    Image(systemName: "calendar")
-                    Text(selectedDate.formattedDate)
-                        .font(.subheadline)
+        VStack {
+            HStack {
+                // 日付選択ボタン
+                Button(action: {
+                    showingDatePicker.toggle()
+                }) {
+                    HStack {
+                        Image(systemName: "calendar")
+                        Text(selectedDate.formattedDate)
+                            .font(.subheadline)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.backgroundSecondary)
+                    )
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.backgroundSecondary)
-                )
-            }
-            .foregroundColor(.primary)
-            
-            Spacer()
-            
-            // フィルターボタン
-            Button(action: {
-                showingFilterOptions.toggle()
-            }) {
-                HStack {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text(selectedFoodType ?? "すべて")
-                        .font(.subheadline)
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.backgroundSecondary)
-                )
-            }
-            .foregroundColor(.primary)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        
-        // フィルターオプション
-        if showingFilterOptions {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("フードタイプでフィルター")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .foregroundColor(.primary)
                 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        // すべて表示オプション
-                        filterChip(title: "すべて", isSelected: selectedFoodType == nil) {
-                            selectedFoodType = nil
-                            if let petId = petViewModel.selectedPet?.id {
-                                fetchLogsForSelectedDate(petId: petId)
-                            }
-                        }
-                        
-                        // 一般的なフードタイプオプション
-                        let commonTypes = ["ドライフード", "ウェットフード", "おやつ", "水"]
-                        ForEach(commonTypes, id: \.self) { type in
-                            filterChip(title: type, isSelected: selectedFoodType == type) {
-                                selectedFoodType = type
+                Spacer()
+                
+                // フィルターボタン
+                Button(action: {
+                    showingFilterOptions.toggle()
+                }) {
+                    HStack {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                        Text(selectedFoodType ?? "すべて")
+                            .font(.subheadline)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.backgroundSecondary)
+                    )
+                }
+                .foregroundColor(.primary)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            
+            // フィルターオプション
+            if showingFilterOptions {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("フードタイプでフィルター")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            // すべて表示オプション
+                            filterChip(title: "すべて", isSelected: selectedFoodType == nil) {
+                                selectedFoodType = nil
                                 if let petId = petViewModel.selectedPet?.id {
-                                    fetchLogsForSelectedDate(petId: petId, foodType: type)
+                                    fetchLogsForSelectedDate(petId: petId)
+                                }
+                            }
+                            
+                            // 一般的なフードタイプオプション
+                            let commonTypes = ["ドライフード", "ウェットフード", "おやつ", "水"]
+                            ForEach(commonTypes, id: \.self) { type in
+                                filterChip(title: type, isSelected: selectedFoodType == type) {
+                                    selectedFoodType = type
+                                    if let petId = petViewModel.selectedPet?.id {
+                                        fetchLogsForSelectedDate(petId: petId, foodType: type)
+                                    }
                                 }
                             }
                         }
+                        .padding(.bottom, 8)
                     }
-                    .padding(.bottom, 8)
                 }
+                .padding(.horizontal)
+                .background(Color.backgroundSecondary.opacity(0.3))
             }
-            .padding(.horizontal)
-            .background(Color.backgroundSecondary.opacity(0.3))
         }
     }
     
@@ -320,7 +323,8 @@ struct FeedingLogView: View {
         let startOfDay = calendar.startOfDay(for: selectedDate)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
         
-        let request: NSFetchRequest<FeedingLog> = FeedingLog.fetchRequest()
+        let context = PersistenceController.shared.container.viewContext
+        let request = NSFetchRequest<FeedingLog>(entityName: "FeedingLog")
         
         var predicates: [NSPredicate] = [
             NSPredicate(format: "pet.id == %@", petId as CVarArg),
@@ -332,10 +336,9 @@ struct FeedingLogView: View {
         }
         
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \FeedingLog.timestamp, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         
         do {
-            let context = PersistenceController.shared.container.viewContext
             let fetchedLogs = try context.fetch(request)
             feedingViewModel.feedingLogs = fetchedLogs.map { FeedingLogModel(entity: $0) }
         } catch {

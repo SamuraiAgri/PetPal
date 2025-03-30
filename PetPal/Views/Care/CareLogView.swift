@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct CareLogView: View {
     @ObservedObject var petViewModel: PetViewModel
@@ -65,8 +66,8 @@ struct CareLogView: View {
                     }
                 })
             }
-            .onChange(of: petViewModel.selectedPet) { _ in
-                if let petId = petViewModel.selectedPet?.id {
+            .onChange(of: petViewModel.selectedPet) { newValue in
+                if let petId = newValue?.id {
                     fetchLogsForSelectedDate(petId: petId)
                 }
             }
@@ -236,13 +237,13 @@ struct CareLogView: View {
         let startOfDay = calendar.startOfDay(for: selectedDate)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
         
-        let request: NSFetchRequest<CareLog> = CareLog.fetchRequest()
+        let context = PersistenceController.shared.container.viewContext
+        let request = NSFetchRequest<CareLog>(entityName: "CareLog")
         request.predicate = NSPredicate(format: "pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
                                          petId as CVarArg, startOfDay as CVarArg, endOfDay as CVarArg)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CareLog.timestamp, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         
         do {
-            let context = PersistenceController.shared.container.viewContext
             let fetchedLogs = try context.fetch(request)
             careViewModel.careLogs = fetchedLogs.map { CareLogModel(entity: $0) }
         } catch {

@@ -3,7 +3,7 @@ import Foundation
 import CoreData
 import CloudKit
 
-struct PetModel {
+struct PetModel: Identifiable, Equatable {
     var id: UUID
     var name: String
     var species: String
@@ -16,6 +16,11 @@ struct PetModel {
     var updatedAt: Date
     var cloudKitRecordID: String?
     var isActive: Bool
+    
+    // Equatableプロトコル準拠
+    static func == (lhs: PetModel, rhs: PetModel) -> Bool {
+        return lhs.id == rhs.id
+    }
     
     // CoreDataエンティティからモデルを初期化
     init(entity: Pet) {

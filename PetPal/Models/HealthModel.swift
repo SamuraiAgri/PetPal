@@ -41,8 +41,10 @@ struct HealthLogModel: Identifiable {
     func toCloudKitRecord() -> CKRecord {
         let recordID: CKRecord.ID
         
-        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":"), components.count == 2 {
-            recordID = CKRecord.ID(recordName: components[1], zoneID: CKRecordZone.ID(zoneName: components[0], ownerName: CKCurrentUserDefaultName))
+        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":").first, components.count == 2 {
+            let zoneString = components
+            let recordString = existingRecordID.components(separatedBy: ":").last ?? id.uuidString
+            recordID = CKRecord.ID(recordName: recordString, zoneID: CKRecordZone.ID(zoneName: zoneString, ownerName: CKCurrentUserDefaultName))
         } else {
             recordID = CKRecord.ID(recordName: id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
         }
@@ -108,8 +110,10 @@ struct VaccinationModel: Identifiable {
     func toCloudKitRecord() -> CKRecord {
         let recordID: CKRecord.ID
         
-        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":"), components.count == 2 {
-            recordID = CKRecord.ID(recordName: components[1], zoneID: CKRecordZone.ID(zoneName: components[0], ownerName: CKCurrentUserDefaultName))
+        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":").first, components.count == 2 {
+            let zoneString = components
+            let recordString = existingRecordID.components(separatedBy: ":").last ?? id.uuidString
+            recordID = CKRecord.ID(recordName: recordString, zoneID: CKRecordZone.ID(zoneName: zoneString, ownerName: CKCurrentUserDefaultName))
         } else {
             recordID = CKRecord.ID(recordName: id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
         }
@@ -174,8 +178,10 @@ struct WeightLogModel: Identifiable {
     func toCloudKitRecord() -> CKRecord {
         let recordID: CKRecord.ID
         
-        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":"), components.count == 2 {
-            recordID = CKRecord.ID(recordName: components[1], zoneID: CKRecordZone.ID(zoneName: components[0], ownerName: CKCurrentUserDefaultName))
+        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":").first, components.count == 2 {
+            let zoneString = components
+            let recordString = existingRecordID.components(separatedBy: ":").last ?? id.uuidString
+            recordID = CKRecord.ID(recordName: recordString, zoneID: CKRecordZone.ID(zoneName: zoneString, ownerName: CKCurrentUserDefaultName))
         } else {
             recordID = CKRecord.ID(recordName: id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
         }
