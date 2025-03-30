@@ -45,7 +45,7 @@ struct MainTabView: View {
         .tint(Color.primaryApp)
         .accentColor(Color.primaryApp)  // タブバーの色を鮮やかに
         .overlay(
-            // 設定ボタンオーバーレイをより魅力的に
+            // 設定ボタンオーバーレイをより魅力的に - 位置調整
             VStack {
                 HStack {
                     Spacer()
@@ -62,8 +62,8 @@ struct MainTabView: View {
                                     .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 3)
                             )
                     }
-                    .padding()
-                    .offset(y: -8)  // 少し上に表示
+                    .padding(.trailing, 20)
+                    .padding(.top, 45)  // 上部に余白を追加して他のボタンとの重なりを防ぐ
                 }
                 Spacer()
             }
