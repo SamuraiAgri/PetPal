@@ -1,4 +1,4 @@
-// PetPal/Models/CoreData/Persistence.swift
+// PetPal/Models/CoreData/Persistence.swift の修正
 import CoreData
 import CloudKit
 

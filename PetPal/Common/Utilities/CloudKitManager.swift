@@ -1,4 +1,4 @@
-// PetPal/Common/Utilities/CloudKitManager.swift
+// PetPal/Common/Utilities/CloudKitManager.swift の修正
 import Foundation
 import CloudKit
 import Combine
@@ -41,7 +41,7 @@ class CloudKitManager {
     func savePet(_ pet: PetModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
         let record = pet.toCloudKitRecord()
         
-        database.save(record) { record, error in
+        database.save(record) { (record: CKRecord?, error: Error?) in
             if let error = error {
                 completion(.failure(error))
             } else if let record = record {
@@ -60,10 +60,10 @@ class CloudKitManager {
         // iOS 15.0以降の新しいAPI
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { result in
+        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { (result: Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) in
             switch result {
             case .success(let (matchResults, _)):
-                if let recordID = matchResults.first?.1 {
+                if let recordID = matchResults.first?.0 {
                     self.database.fetch(withRecordID: recordID) { fetchResult in
                         switch fetchResult {
                         case .success(let record):
@@ -94,7 +94,7 @@ class CloudKitManager {
         database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
             switch result {
             case .success(let (matchResults, _)):
-                let recordIDs = matchResults.map { $0.1 }
+                let recordIDs = matchResults.map { $0.0 }
                 let operation = CKFetchRecordsOperation(recordIDs: recordIDs)
                 
                 operation.fetchRecordsResultBlock = { operationResult in

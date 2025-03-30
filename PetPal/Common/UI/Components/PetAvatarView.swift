@@ -1,3 +1,4 @@
+// PetPal/Common/UI/Components/PetAvatarView.swift
 import SwiftUI
 
 struct PetAvatarView: View {

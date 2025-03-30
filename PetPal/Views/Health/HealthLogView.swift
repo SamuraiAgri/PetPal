@@ -648,4 +648,29 @@ struct WeightLogEntryView: View {
     }
     
     private func saveAction() {
-        guard let weightValue
+            // 入力バリデーション
+            guard let weightValue = Double(weight) else {
+                invalidInputMessage = "体重は数値で入力してください"
+                showingInvalidInputAlert = true
+                return
+            }
+            
+            guard weightValue > 0 else {
+                invalidInputMessage = "体重は0より大きい値を入力してください"
+                showingInvalidInputAlert = true
+                return
+            }
+            
+            let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            healthViewModel.addWeightLog(
+                petId: pet.id,
+                weight: weightValue,
+                unit: unit,
+                notes: trimmedNotes,
+                date: date
+            )
+            
+            dismiss()
+        }
+    }

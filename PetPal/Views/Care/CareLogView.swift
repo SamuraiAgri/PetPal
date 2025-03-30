@@ -256,107 +256,103 @@ struct CareLogView: View {
 // 各ケア記録アイテムのビュー
 struct CareLogItemView: View {
     let log: CareLogModel
-    // 各ケア記録アイテムのビュー (CareLogView.swift の続き)
-    struct CareLogItemView: View {
-        let log: CareLogModel
-        
-        var body: some View {
-            HStack(spacing: 16) {
-                // ケアタイプアイコン
-                ZStack {
-                    Circle()
-                        .fill(Color.forCareType(log.type).opacity(0.2))
-                        .frame(width: 40, height: 40)
-                    
-                    Image(systemName: iconForCareType(log.type))
-                        .foregroundColor(Color.forCareType(log.type))
-                }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // ケアタイプアイコン
+            ZStack {
+                Circle()
+                    .fill(Color.forCareType(log.type).opacity(0.2))
+                    .frame(width: 40, height: 40)
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(log.type)
-                        .font(.headline)
-                    
-                    Text(log.timestamp.formattedTime)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    if !log.notes.isEmpty {
-                        Text(log.notes)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                }
+                Image(systemName: iconForCareType(log.type))
+                    .foregroundColor(Color.forCareType(log.type))
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(log.type)
+                    .font(.headline)
                 
-                Spacer()
+                Text(log.timestamp.formattedTime)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("実施者:")
+                if !log.notes.isEmpty {
+                    Text(log.notes)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
-                    Text(log.performedBy)
-                        .font(.footnote)
+                        .lineLimit(2)
                 }
             }
-            .padding(.vertical, 8)
-        }
-        
-        // ケアタイプに応じたアイコンを返す
-        private func iconForCareType(_ type: String) -> String {
-            switch type {
-            case Constants.CareTypes.walk:
-                return "figure.walk"
-            case Constants.CareTypes.feeding:
-                return "cup.and.saucer.fill"
-            case Constants.CareTypes.grooming:
-                return "scissors"
-            case Constants.CareTypes.medication:
-                return "pills.fill"
-            case Constants.CareTypes.healthCheck:
-                return "stethoscope"
-            default:
-                return "heart.fill"
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("実施者:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(log.performedBy)
+                    .font(.footnote)
             }
         }
+        .padding(.vertical, 8)
     }
+    
+    // ケアタイプに応じたアイコンを返す
+    private func iconForCareType(_ type: String) -> String {
+        switch type {
+        case Constants.CareTypes.walk:
+            return "figure.walk"
+        case Constants.CareTypes.feeding:
+            return "cup.and.saucer.fill"
+        case Constants.CareTypes.grooming:
+            return "scissors"
+        case Constants.CareTypes.medication:
+            return "pills.fill"
+        case Constants.CareTypes.healthCheck:
+            return "stethoscope"
+        default:
+            return "heart.fill"
+        }
+    }
+}
 
-    // 日付選択ビュー
-    struct DatePickerView: View {
-        @Binding var selectedDate: Date
-        let onSelect: (Date) -> Void
-        @Environment(\.dismiss) private var dismiss
-        @State private var internalDate: Date
-        
-        init(selectedDate: Binding<Date>, onSelect: @escaping (Date) -> Void) {
-            self._selectedDate = selectedDate
-            self.onSelect = onSelect
-            self._internalDate = State(initialValue: selectedDate.wrappedValue)
-        }
-        
-        var body: some View {
-            NavigationView {
-                VStack {
-                    DatePicker("日付を選択", selection: $internalDate, displayedComponents: .date)
-                        .datePickerStyle(GraphicalDatePickerStyle())
-                        .padding()
-                }
-                .navigationTitle("日付選択")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("キャンセル") {
-                            dismiss()
-                        }
+// 日付選択ビュー
+struct DatePickerView: View {
+    @Binding var selectedDate: Date
+    let onSelect: (Date) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var internalDate: Date
+    
+    init(selectedDate: Binding<Date>, onSelect: @escaping (Date) -> Void) {
+        self._selectedDate = selectedDate
+        self.onSelect = onSelect
+        self._internalDate = State(initialValue: selectedDate.wrappedValue)
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                DatePicker("日付を選択", selection: $internalDate, displayedComponents: .date)
+                    .datePickerStyle(GraphicalDatePickerStyle())
+                    .padding()
+            }
+            .navigationTitle("日付選択")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("キャンセル") {
+                        dismiss()
                     }
-                    
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("決定") {
-                            onSelect(internalDate)
-                        }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("決定") {
+                        onSelect(internalDate)
                     }
                 }
             }
         }
     }
-    }
+}

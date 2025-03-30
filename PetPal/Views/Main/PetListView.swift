@@ -1,4 +1,6 @@
+// PetPal/Views/Main/PetListView.swift の修正（一部抜粋）
 import SwiftUI
+import PhotosUI
 
 struct PetListView: View {
     @ObservedObject var petViewModel: PetViewModel
@@ -58,16 +60,7 @@ struct PetListView: View {
                         isNewPet: false,
                         initialPet: selectedPet,
                         onSave: { updatedPet in
-                            petViewModel.updatePet(
-                                id: updatedPet.id,
-                                name: updatedPet.name,
-                                species: updatedPet.species,
-                                breed: updatedPet.breed,
-                                birthDate: updatedPet.birthDate,
-                                gender: updatedPet.gender,
-                                iconImageData: updatedPet.iconImageData,
-                                notes: updatedPet.notes
-                            )
+                            updateSelectedPet(updatedPet)
                         }
                     )
                 }
@@ -91,6 +84,20 @@ struct PetListView: View {
                 }
             }
         }
+    }
+    
+    // 選択されたペットを更新する関数を追加
+    private func updateSelectedPet(_ pet: PetModel) {
+        petViewModel.updatePet(
+            id: pet.id,
+            name: pet.name,
+            species: pet.species,
+            breed: pet.breed,
+            birthDate: pet.birthDate,
+            gender: pet.gender,
+            iconImageData: pet.iconImageData,
+            notes: pet.notes
+        )
     }
     
     // 同期ステータス表示
@@ -137,23 +144,30 @@ struct PetListView: View {
                             petViewModel.selectPet(id: pet.id)
                         }
                         .contextMenu {
-                            Button(action: {
-                                petViewModel.selectPet(id: pet.id)
-                                showingEditPet = true
-                            }) {
-                                Label("編集", systemImage: "pencil")
-                            }
-                            
-                            Button(role: .destructive, action: {
-                                petToDelete = pet.id
-                                showingDeleteAlert = true
-                            }) {
-                                Label("削除", systemImage: "trash")
-                            }
+                            createContextMenu(for: pet)
                         }
                 }
             }
             .padding()
+        }
+    }
+    
+    // コンテキストメニューを生成するメソッドを分離
+    private func createContextMenu(for pet: PetModel) -> some View {
+        Group {
+            Button(action: {
+                petViewModel.selectPet(id: pet.id)
+                showingEditPet = true
+            }) {
+                Label("編集", systemImage: "pencil")
+            }
+            
+            Button(role: .destructive, action: {
+                petToDelete = pet.id
+                showingDeleteAlert = true
+            }) {
+                Label("削除", systemImage: "trash")
+            }
         }
     }
     
@@ -172,64 +186,65 @@ struct PetListView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            Button(action: {
-                showingAddPet = true
-            }) {
-                Text("ペットを追加")
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+            // 空の状態表示（続き）
+                        .padding(.horizontal)
+                        
+                        Button(action: {
+                            showingAddPet = true
+                        }) {
+                            Text("ペットを追加")
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                        }
+                        .primaryButtonStyle()
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
-            .primaryButtonStyle()
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
 
-// PetCardView - ペット一覧の各カード
-struct PetCardView: View {
-    let pet: PetModel
-    let isSelected: Bool
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // ペットアバター
-            PetAvatarView(imageData: pet.iconImageData, size: 60)
-            
-            // ペット情報
-            VStack(alignment: .leading, spacing: 4) {
-                Text(pet.name)
-                    .font(.title3)
-                    .fontWeight(.semibold)
+            // PetCardView - ペット一覧の各カード
+            struct PetCardView: View {
+                let pet: PetModel
+                let isSelected: Bool
                 
-                Text(pet.species + (pet.breed.isEmpty ? "" : " / \(pet.breed)"))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text("年齢: \(pet.age)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                var body: some View {
+                    HStack(spacing: 16) {
+                        // ペットアバター
+                        PetAvatarView(imageData: pet.iconImageData, size: 60)
+                        
+                        // ペット情報
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(pet.name)
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                            
+                            Text(pet.species + (pet.breed.isEmpty ? "" : " / \(pet.breed)"))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("年齢: \(pet.age)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        // 選択マーク
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.primaryApp)
+                                .font(.title3)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
+                            .fill(isSelected ? Color.primaryApp.opacity(0.1) : Color.backgroundPrimary)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
+                            .stroke(isSelected ? Color.primaryApp : Color.gray.opacity(0.3), lineWidth: isSelected ? 2 : 1)
+                    )
+                }
             }
-            
-            Spacer()
-            
-            // 選択マーク
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.primaryApp)
-                    .font(.title3)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
-                .fill(isSelected ? Color.primaryApp.opacity(0.1) : Color.backgroundPrimary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
-                .stroke(isSelected ? Color.primaryApp : Color.gray.opacity(0.3), lineWidth: isSelected ? 2 : 1)
-        )
-    }
-}
