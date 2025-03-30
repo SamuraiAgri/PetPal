@@ -1,4 +1,6 @@
+// PetPal/Views/Feeding/FeedingScheduleView.swift
 import SwiftUI
+import CoreData
 
 struct FeedingScheduleView: View {
     @ObservedObject var petViewModel: PetViewModel
@@ -14,7 +16,7 @@ struct FeedingScheduleView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // ペット選択セクション
-                if let selectedPet = petViewModel.selectedPet {
+                if petViewModel.selectedPet != nil {
                     petSelectorView
                     
                     // クイック給餌ボタン
@@ -65,7 +67,7 @@ struct FeedingScheduleView: View {
                     }
                 })
             }
-            .onChange(of: petViewModel.selectedPet) { newPet in
+            .onChange(of: petViewModel.selectedPet) { _, newPet in
                 if let petId = newPet?.id {
                     fetchLogsForSelectedDate(petId: petId)
                 }
@@ -274,7 +276,7 @@ struct FeedingScheduleView: View {
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                 }
-                .primaryButtonStyle()
+                .primaryButton()  // primaryButtonStyle() を primaryButton() に変更
             }
         }
         .padding()
@@ -285,13 +287,13 @@ struct FeedingScheduleView: View {
         let startOfDay = calendar.startOfDay(for: selectedDate)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
         
-        let request: NSFetchRequest<FeedingLog> = FeedingLog.fetchRequest()
-        request.predicate = NSPredicate(format: "pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
+        let context = PersistenceController.shared.container.viewContext
+        let request = NSFetchRequest<FeedingLog>(entityName: "FeedingLog")
+        request.predicate = NSPredicate(format: "ANY pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
                                          petId as CVarArg, startOfDay as CVarArg, endOfDay as CVarArg)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \FeedingLog.timestamp, ascending: false)]
         
         do {
-            let context = PersistenceController.shared.container.viewContext
             let fetchedLogs = try context.fetch(request)
             feedingViewModel.feedingLogs = fetchedLogs.map { FeedingLogModel(entity: $0) }
         } catch {
