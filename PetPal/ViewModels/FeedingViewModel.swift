@@ -22,7 +22,7 @@ class FeedingViewModel: ObservableObject {
         isLoading = true
         
         let request: NSFetchRequest<FeedingLog> = FeedingLog.fetchRequest()
-        request.predicate = NSPredicate(format: "pet.id == %@", petId as CVarArg)
+        request.predicate = NSPredicate(format: "ANY pet.id == %@", petId as CVarArg)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \FeedingLog.timestamp, ascending: false)]
         
         do {
@@ -62,7 +62,9 @@ class FeedingViewModel: ObservableObject {
             feedingLog.timestamp = Date()
             feedingLog.notes = notes
             feedingLog.performedBy = performedBy
-            feedingLog.pet = pet
+            
+            // NSSetの追加方法に修正
+            feedingLog.addToPet(pet)
             
             try context.save()
             
@@ -107,7 +109,11 @@ class FeedingViewModel: ObservableObject {
             let results = try context.fetch(request)
             
             if let logToDelete = results.first {
-                let petId = logToDelete.pet?.id
+                // ペットIDの取得方法を修正
+                var petId: UUID? = nil
+                if let pets = logToDelete.pet?.allObjects as? [Pet], let firstPet = pets.first {
+                    petId = firstPet.id
+                }
                 
                 context.delete(logToDelete)
                 try context.save()
@@ -125,7 +131,7 @@ class FeedingViewModel: ObservableObject {
     // 期間指定で給餌記録を取得（統計用）
     func fetchFeedingLogsForPeriod(petId: UUID, from: Date, to: Date) -> [FeedingLogModel] {
         let request: NSFetchRequest<FeedingLog> = FeedingLog.fetchRequest()
-        request.predicate = NSPredicate(format: "pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
+        request.predicate = NSPredicate(format: "ANY pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
                                          petId as CVarArg, from as CVarArg, to as CVarArg)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \FeedingLog.timestamp, ascending: true)]
         

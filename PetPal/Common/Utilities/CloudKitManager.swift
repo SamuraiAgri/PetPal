@@ -60,30 +60,47 @@ class CloudKitManager {
         // iOS 15.0以降の新しいAPI
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        // 代替アプローチ: 古いAPIを使用
-        database.perform(query, inZoneWith: zoneID) { [weak self] (records, error) in
+        // デフォルト値でCKQueryOperationを作成
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.zoneID = zoneID
+        
+        var records: [CKRecord] = []
+        
+        // recordMatchedBlockの型を明示的に指定
+        queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) in
+            switch result {
+            case .success(let record):
+                records.append(record)
+            case .failure(let error):
+                print("Error fetching record: \(error)")
+            }
+        }
+        
+        // queryResultBlockの型を明示的に指定
+        queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) in
             guard let self = self else { return }
             
-            if let error = error {
+            switch result {
+            case .success(_):
+                if let record = records.first {
+                    self.petModelFromRecord(record) { result in
+                        DispatchQueue.main.async {
+                            completion(result)
+                        }
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        completion(.success(nil))
+                    }
+                }
+            case .failure(let error):
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
-                return
-            }
-            
-            guard let record = records?.first else {
-                DispatchQueue.main.async {
-                    completion(.success(nil))
-                }
-                return
-            }
-            
-            self.petModelFromRecord(record) { result in
-                DispatchQueue.main.async {
-                    completion(result)
-                }
             }
         }
+        
+        database.add(queryOperation)
     }
     
     // 全ペット取得
@@ -93,51 +110,69 @@ class CloudKitManager {
         
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        // 代替アプローチ: 古いAPIを使用
-        database.perform(query, inZoneWith: zoneID) { [weak self] (records, error) in
+        // デフォルト値でCKQueryOperationを作成
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.zoneID = zoneID
+        
+        var records: [CKRecord] = []
+        
+        // recordMatchedBlockの型を明示的に指定
+        queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) in
+            switch result {
+            case .success(let record):
+                records.append(record)
+            case .failure(let error):
+                print("Error fetching record: \(error)")
+            }
+        }
+        
+        // queryResultBlockの型を明示的に指定
+        queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) in
             guard let self = self else { return }
             
-            if let error = error {
+            switch result {
+            case .success(_):
+                if records.isEmpty {
+                    DispatchQueue.main.async {
+                        completion(.success([]))
+                    }
+                    return
+                }
+                
+                let group = DispatchGroup()
+                var petModels: [PetModel] = []
+                var fetchErrors: [Error] = []
+                
+                for record in records {
+                    group.enter()
+                    self.petModelFromRecord(record) { result in
+                        switch result {
+                        case .success(let petModel):
+                            if let model = petModel {
+                                petModels.append(model)
+                            }
+                        case .failure(let error):
+                            fetchErrors.append(error)
+                        }
+                        group.leave()
+                    }
+                }
+                
+                group.notify(queue: .main) {
+                    if !fetchErrors.isEmpty {
+                        completion(.failure(fetchErrors.first!))
+                    } else {
+                        completion(.success(petModels))
+                    }
+                }
+            case .failure(let error):
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
-                return
-            }
-            
-            guard let records = records, !records.isEmpty else {
-                DispatchQueue.main.async {
-                    completion(.success([]))
-                }
-                return
-            }
-            
-            let group = DispatchGroup()
-            var petModels: [PetModel] = []
-            var fetchErrors: [Error] = []
-            
-            for record in records {
-                group.enter()
-                self.petModelFromRecord(record) { result in
-                    switch result {
-                    case .success(let petModel):
-                        if let model = petModel {
-                            petModels.append(model)
-                        }
-                    case .failure(let error):
-                        fetchErrors.append(error)
-                    }
-                    group.leave()
-                }
-            }
-            
-            group.notify(queue: .main) {
-                if !fetchErrors.isEmpty {
-                    completion(.failure(fetchErrors.first!))
-                } else {
-                    completion(.success(petModels))
-                }
             }
         }
+        
+        database.add(queryOperation)
     }
     
     // CKRecordからPetModelへの変換
