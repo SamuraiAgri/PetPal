@@ -60,31 +60,30 @@ class CloudKitManager {
         // iOS 15.0以降の新しいAPI
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        // 型アノテーションを明示的に追加
-        let fetchOperation: (Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) -> Void = { result in
-            switch result {
-            case .success(let (matchResults, _)):
-                if let recordID = matchResults.first?.0 {
-                    self.database.fetch(withRecordID: recordID) { fetchResult in
-                        switch fetchResult {
-                        case .success(let record):
-                            self.petModelFromRecord(record) { result in
-                                completion(result)
-                            }
-                        case .failure(let error):
-                            completion(.failure(error))
-                        }
-                    }
-                } else {
-                    // レコードが見つからなかった場合
+        // 代替アプローチ: 古いAPIを使用
+        database.perform(query, inZoneWith: zoneID) { [weak self] (records, error) in
+            guard let self = self else { return }
+            
+            if let error = error {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let record = records?.first else {
+                DispatchQueue.main.async {
                     completion(.success(nil))
                 }
-            case .failure(let error):
-                completion(.failure(error))
+                return
+            }
+            
+            self.petModelFromRecord(record) { result in
+                DispatchQueue.main.async {
+                    completion(result)
+                }
             }
         }
-        
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1, completionHandler: fetchOperation)
     }
     
     // 全ペット取得
@@ -94,55 +93,51 @@ class CloudKitManager {
         
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        // 型アノテーションを明示的に追加
-        let fetchOperation: (Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) -> Void = { result in
-            switch result {
-            case .success(let (matchResults, _)):
-                let recordIDs = matchResults.map { $0.0 }
-                let operation = CKFetchRecordsOperation(recordIDs: recordIDs)
-                
-                operation.fetchRecordsResultBlock = { operationResult in
-                    switch operationResult {
-                    case .success(let records):
-                        let group = DispatchGroup()
-                        var petModels: [PetModel] = []
-                        var fetchErrors: [Error] = []
-                        
-                        for record in records.values {
-                            group.enter()
-                            self.petModelFromRecord(record) { result in
-                                switch result {
-                                case .success(let petModel):
-                                    if let model = petModel {
-                                        petModels.append(model)
-                                    }
-                                case .failure(let error):
-                                    fetchErrors.append(error)
-                                }
-                                group.leave()
-                            }
-                        }
-                        
-                        group.notify(queue: .main) {
-                            if !fetchErrors.isEmpty {
-                                completion(.failure(fetchErrors.first!))
-                            } else {
-                                completion(.success(petModels))
-                            }
+        // 代替アプローチ: 古いAPIを使用
+        database.perform(query, inZoneWith: zoneID) { [weak self] (records, error) in
+            guard let self = self else { return }
+            
+            if let error = error {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let records = records, !records.isEmpty else {
+                DispatchQueue.main.async {
+                    completion(.success([]))
+                }
+                return
+            }
+            
+            let group = DispatchGroup()
+            var petModels: [PetModel] = []
+            var fetchErrors: [Error] = []
+            
+            for record in records {
+                group.enter()
+                self.petModelFromRecord(record) { result in
+                    switch result {
+                    case .success(let petModel):
+                        if let model = petModel {
+                            petModels.append(model)
                         }
                     case .failure(let error):
-                        completion(.failure(error))
+                        fetchErrors.append(error)
                     }
+                    group.leave()
                 }
-                
-                self.database.add(operation)
-                
-            case .failure(let error):
-                completion(.failure(error))
+            }
+            
+            group.notify(queue: .main) {
+                if !fetchErrors.isEmpty {
+                    completion(.failure(fetchErrors.first!))
+                } else {
+                    completion(.success(petModels))
+                }
             }
         }
-        
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults, completionHandler: fetchOperation)
     }
     
     // CKRecordからPetModelへの変換

@@ -78,8 +78,14 @@ struct PetModel: Identifiable, Equatable {
     func toCloudKitRecord() -> CKRecord {
         let recordID: CKRecord.ID
         
-        if let existingRecordID = cloudKitRecordID, let components = existingRecordID.components(separatedBy: ":"), components.count == 2 {
-            recordID = CKRecord.ID(recordName: components[1], zoneID: CKRecordZone.ID(zoneName: components[0], ownerName: CKCurrentUserDefaultName))
+        if let existingRecordID = cloudKitRecordID {
+            // 文字列分割の修正
+            let components = existingRecordID.components(separatedBy: ":")
+            if components.count == 2 {
+                recordID = CKRecord.ID(recordName: components[1], zoneID: CKRecordZone.ID(zoneName: components[0], ownerName: CKCurrentUserDefaultName))
+            } else {
+                recordID = CKRecord.ID(recordName: id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
+            }
         } else {
             recordID = CKRecord.ID(recordName: id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
         }

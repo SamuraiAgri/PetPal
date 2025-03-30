@@ -24,7 +24,12 @@ struct FeedingLogModel: Identifiable {
         self.notes = entity.notes ?? ""
         self.performedBy = entity.performedBy ?? ""
         self.cloudKitRecordID = entity.cloudKitRecordID
-        self.petId = entity.pet?.firstObject.flatMap { ($0 as? Pet)?.id }
+        // NSSetのfirstObjectアクセスを修正
+        if let pets = entity.pet, let petArray = pets.allObjects as? [Pet], let firstPet = petArray.first {
+            self.petId = firstPet.id
+        } else {
+            self.petId = nil
+        }
     }
     
     // 新規作成用の初期化
