@@ -1,4 +1,4 @@
-// PetPal/Common/Utilities/CloudKitManager.swift の修正
+// PetPal/Common/Utilities/CloudKitManager.swift
 import Foundation
 import CloudKit
 import Combine
@@ -60,7 +60,8 @@ class CloudKitManager {
         // iOS 15.0以降の新しいAPI
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { (result: Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) in
+        // 型アノテーションを明示的に追加
+        let fetchOperation: (Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) -> Void = { result in
             switch result {
             case .success(let (matchResults, _)):
                 if let recordID = matchResults.first?.0 {
@@ -82,6 +83,8 @@ class CloudKitManager {
                 completion(.failure(error))
             }
         }
+        
+        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1, completionHandler: fetchOperation)
     }
     
     // 全ペット取得
@@ -91,7 +94,8 @@ class CloudKitManager {
         
         let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { (result: Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) in
+        // 型アノテーションを明示的に追加
+        let fetchOperation: (Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) -> Void = { result in
             switch result {
             case .success(let (matchResults, _)):
                 let recordIDs = matchResults.map { $0.0 }
@@ -137,6 +141,8 @@ class CloudKitManager {
                 completion(.failure(error))
             }
         }
+        
+        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults, completionHandler: fetchOperation)
     }
     
     // CKRecordからPetModelへの変換

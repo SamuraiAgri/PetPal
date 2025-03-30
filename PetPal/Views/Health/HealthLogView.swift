@@ -409,172 +409,171 @@ struct HealthLogView: View {
             RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
                 .stroke(
                     vaccination.expiryDate != nil && vaccination.expiryDate! < Date()
-                    ? Color.vaccination.expiryDate != nil && vaccination.expiryDate! < Date()
-                                        ? Color.errorApp.opacity(0.3)
-                                        : Color.gray.opacity(0.2),
-                                        lineWidth: 1
-                                    )
-                            )
-                            .contextMenu {
-                                Button(role: .destructive, action: {
-                                    healthViewModel.deleteVaccination(id: vaccination.id)
-                                }) {
-                                    Label("削除", systemImage: "trash")
-                                }
-                            }
-                        }
-                        
-                        // 詳細行ヘルパー
-                        private func detailRow(title: String, content: String) -> some View {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(title)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text(content)
-                                    .font(.subheadline)
-                            }
-                        }
-                        
-                        // 健康状態に応じた色を返す
-                        private func healthConditionColor(_ condition: String) -> Color {
-                            switch condition {
-                            case "良好":
-                                return .successApp
-                            case "注意":
-                                return .warningApp
-                            case "不調":
-                                return .errorApp
-                            default:
-                                return .textPrimary
-                            }
-                        }
-                        
-                        // ペット未選択時のビュー
-                        private var noPetSelectedView: some View {
-                            VStack(spacing: 20) {
-                                Image(systemName: "pawprint.circle")
-                                    .font(.system(size: 80))
-                                    .foregroundColor(.secondaryApp)
-                                
-                                Text("ペットが選択されていません")
-                                    .font(.title2)
-                                    .fontWeight(.medium)
-                                
-                                Text("「ペット」タブでペットを選択してください")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                                
-                                if !petViewModel.pets.isEmpty {
-                                    Button(action: {
-                                        petViewModel.selectPet(id: petViewModel.pets[0].id)
-                                    }) {
-                                        Text("最初のペットを選択")
-                                            .padding(.horizontal, 24)
-                                            .padding(.vertical, 12)
-                                    }
-                                    .primaryButtonStyle()
-                                }
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                        
-                        // 空の状態表示
-                        private func emptyStateView(icon: String, title: String, message: String) -> some View {
-                            VStack(spacing: 16) {
-                                Image(systemName: icon)
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.secondaryApp.opacity(0.7))
-                                
-                                Text(title)
-                                    .font(.headline)
-                                
-                                Text(message)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                        }
-                        
-                        // 健康データの読み込み
-                        private func loadHealthData(for petId: UUID) {
-                            healthViewModel.fetchHealthLogs(for: petId)
-                            healthViewModel.fetchWeightLogs(for: petId)
-                            healthViewModel.fetchVaccinations(for: petId)
-                        }
-                    }
+                    ? Color.errorApp.opacity(0.3)
+                    : Color.gray.opacity(0.2),
+                    lineWidth: 1
+                )
+        )
+        .contextMenu {
+            Button(role: .destructive, action: {
+                healthViewModel.deleteVaccination(id: vaccination.id)
+            }) {
+                Label("削除", systemImage: "trash")
+            }
+        }
+    }
+    
+    // 詳細行ヘルパー
+    private func detailRow(title: String, content: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Text(content)
+                .font(.subheadline)
+        }
+    }
+    
+    // 健康状態に応じた色を返す
+    private func healthConditionColor(_ condition: String) -> Color {
+        switch condition {
+        case "良好":
+            return .successApp
+        case "注意":
+            return .warningApp
+        case "不調":
+            return .errorApp
+        default:
+            return .textPrimary
+        }
+    }
+    
+    // ペット未選択時のビュー
+    private var noPetSelectedView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "pawprint.circle")
+                .font(.system(size: 80))
+                .foregroundColor(.secondaryApp)
+            
+            Text("ペットが選択されていません")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            Text("「ペット」タブでペットを選択してください")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            if !petViewModel.pets.isEmpty {
+                Button(action: {
+                    petViewModel.selectPet(id: petViewModel.pets[0].id)
+                }) {
+                    Text("最初のペットを選択")
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                }
+                .primaryButtonStyle()
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // 空の状態表示
+    private func emptyStateView(icon: String, title: String, message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 50))
+                .foregroundColor(.secondaryApp.opacity(0.7))
+            
+            Text(title)
+                .font(.headline)
+            
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+    }
+    
+    // 健康データの読み込み
+    private func loadHealthData(for petId: UUID) {
+        healthViewModel.fetchHealthLogs(for: petId)
+        healthViewModel.fetchWeightLogs(for: petId)
+        healthViewModel.fetchVaccinations(for: petId)
+    }
+}
 
-                    // 健康記録入力ビュー
-                    struct HealthLogEntryView: View {
-                        let pet: PetModel
-                        @ObservedObject var healthViewModel: HealthViewModel
-                        @Environment(\.dismiss) private var dismiss
-                        
-                        @State private var condition = "良好"
-                        @State private var symptoms = ""
-                        @State private var medication = ""
-                        @State private var notes = ""
-                        @State private var date = Date()
-                        
-                        private let conditionOptions = ["良好", "注意", "不調"]
-                        
-                        var body: some View {
-                            NavigationView {
-                                Form {
-                                    Section(header: Text("ペット")) {
-                                        HStack {
-                                            PetAvatarView(imageData: pet.iconImageData, size: 40)
-                                            Text(pet.name)
-                                                .font(.headline)
-                                        }
-                                    }
-                                    
-                                    Section(header: Text("健康状態")) {
-                                        Picker("状態", selection: $condition) {
-                                            ForEach(conditionOptions, id: \.self) { option in
-                                                Text(option).tag(option)
-                                            }
-                                        }
-                                        .pickerStyle(SegmentedPickerStyle())
-                                        
-                                        TextField("症状（任意）", text: $symptoms)
-                                        TextField("投薬（任意）", text: $medication)
-                                    }
-                                    
-                                    Section(header: Text("詳細")) {
-                                        DatePicker("日付", selection: $date, displayedComponents: .date)
-                                        TextField("メモ（任意）", text: $notes)
-                                    }
-                                }
-                                .navigationTitle("健康記録を追加")
-                                .navigationBarTitleDisplayMode(.inline)
-                                .toolbar {
-                                    ToolbarItem(placement: .navigationBarLeading) {
-                                        Button("キャンセル") {
-                                            dismiss()
-                                        }
-                                    }
-                                    
-                                    ToolbarItem(placement: .navigationBarTrailing) {
-                                        Button("保存") {
-                                            healthViewModel.addHealthLog(
-                                                petId: pet.id,
-                                                condition: condition,
-                                                symptoms: symptoms,
-                                                medication: medication,
-                                                notes: notes,
-                                                date: date
-                                            )
-                                            dismiss()
-                                        }
-                                    }
-                                }
-                            }
+// 健康記録入力ビュー
+struct HealthLogEntryView: View {
+    let pet: PetModel
+    @ObservedObject var healthViewModel: HealthViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var condition = "良好"
+    @State private var symptoms = ""
+    @State private var medication = ""
+    @State private var notes = ""
+    @State private var date = Date()
+    
+    private let conditionOptions = ["良好", "注意", "不調"]
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("ペット")) {
+                    HStack {
+                        PetAvatarView(imageData: pet.iconImageData, size: 40)
+                        Text(pet.name)
+                            .font(.headline)
+                    }
+                }
+                
+                Section(header: Text("健康状態")) {
+                    Picker("状態", selection: $condition) {
+                        ForEach(conditionOptions, id: \.self) { option in
+                            Text(option).tag(option)
                         }
                     }
+                    .pickerStyle(SegmentedPickerStyle())
+                    
+                    TextField("症状（任意）", text: $symptoms)
+                    TextField("投薬（任意）", text: $medication)
+                }
+                
+                Section(header: Text("詳細")) {
+                    DatePicker("日付", selection: $date, displayedComponents: .date)
+                    TextField("メモ（任意）", text: $notes)
+                }
+            }
+            .navigationTitle("健康記録を追加")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("キャンセル") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("保存") {
+                        healthViewModel.addHealthLog(
+                            petId: pet.id,
+                            condition: condition,
+                            symptoms: symptoms,
+                            medication: medication,
+                            notes: notes,
+                            date: date
+                        )
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}

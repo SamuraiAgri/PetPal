@@ -108,7 +108,7 @@ struct SettingsView: View {
                 NotificationSettingsView()
             }
             .sheet(isPresented: $showingCloudKitStatus) {
-                CloudKitStatusView()
+                SyncStatusView()  // CloudKitStatusView から SyncStatusView に変更
             }
             .alert("設定をリセット", isPresented: $showingResetConfirmation) {
                 Button("キャンセル", role: .cancel) {}

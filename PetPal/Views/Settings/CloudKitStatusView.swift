@@ -1,8 +1,8 @@
-// PetPal/Views/Settings/CloudKitStatusView.swift
+// PetPal/Views/Settings/SyncStatusView.swift
 
 import SwiftUI
 
-struct CloudKitStatusView: View {
+struct SyncStatusView: View {
     @ObservedObject private var cloudKitViewModel = CloudKitSyncViewModel()
     @Environment(\.dismiss) private var dismiss
     
@@ -115,4 +115,4 @@ struct CloudKitStatusView: View {
         formatter.locale = Locale(identifier: "ja_JP")
         return formatter.string(from: date)
     }
-}
+ }
