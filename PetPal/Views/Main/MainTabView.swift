@@ -43,8 +43,9 @@ struct MainTabView: View {
                 }
         }
         .tint(Color.primaryApp)
+        .accentColor(Color.primaryApp)  // タブバーの色を鮮やかに
         .overlay(
-            // 設定ボタンオーバーレイ
+            // 設定ボタンオーバーレイをより魅力的に
             VStack {
                 HStack {
                     Spacer()
@@ -53,15 +54,16 @@ struct MainTabView: View {
                     }) {
                         Image(systemName: "gearshape.fill")
                             .font(.title2)
-                            .foregroundColor(.primaryApp)
+                            .foregroundColor(.white)
                             .padding(12)
                             .background(
                                 Circle()
-                                    .fill(Color.backgroundPrimary)
-                                    .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
+                                    .fill(Color.primaryApp.opacity(0.9))
+                                    .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 3)
                             )
                     }
                     .padding()
+                    .offset(y: -8)  // 少し上に表示
                 }
                 Spacer()
             }

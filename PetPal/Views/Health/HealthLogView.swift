@@ -259,25 +259,105 @@ struct HealthLogView: View {
     private func weightStatsView(for petId: UUID) -> some View {
         let stats = healthViewModel.getWeightStats(for: petId)
         
-        return HStack {
-            if let latest = stats.latest, let unit = stats.unit {
-                StatusCardView(
-                    title: "最新",
-                    value: "\(String(format: "%.1f", latest)) \(unit)",
-                    icon: "scalemass.fill",
-                    color: .accentApp
-                )
+        return VStack(spacing: 10) {
+            Text("体重統計")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.top, 8)
+            
+            HStack(spacing: 12) {
+                if let latest = stats.latest, let unit = stats.unit {
+                    weightStatCard(
+                        title: "最新",
+                        value: "\(String(format: "%.1f", latest))",
+                        unit: unit,
+                        icon: "scalemass.fill",
+                        color: .accentApp
+                    )
+                }
+                
+                if let average = stats.average, let unit = stats.unit {
+                    weightStatCard(
+                        title: "平均",
+                        value: "\(String(format: "%.1f", average))",
+                        unit: unit,
+                        icon: "number.square.fill",
+                        color: .infoApp
+                    )
+                }
+            }
+            .padding(.horizontal)
+            
+            if let min = stats.min, let max = stats.max, let unit = stats.unit {
+                HStack(spacing: 12) {
+                    weightStatCard(
+                        title: "最小",
+                        value: "\(String(format: "%.1f", min))",
+                        unit: unit,
+                        icon: "arrow.down.circle.fill",
+                        color: .successApp
+                    )
+                    
+                    weightStatCard(
+                        title: "最大",
+                        value: "\(String(format: "%.1f", max))",
+                        unit: unit,
+                        icon: "arrow.up.circle.fill",
+                        color: .warningApp
+                    )
+                }
+                .padding(.horizontal)
             }
             
-            if let average = stats.average, let unit = stats.unit {
-                StatusCardView(
-                    title: "平均",
-                    value: "\(String(format: "%.1f", average)) \(unit)",
-                    icon: "number.square.fill",
-                    color: .infoApp
-                )
+            .padding(.bottom, 12)
+        }
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.accentApp.opacity(0.1), Color.backgroundSecondary.opacity(0.3)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+        .padding(.horizontal, 12)
+    }
+
+    private func weightStatCard(title: String, value: String, unit: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack(alignment: .firstTextBaseline) {
+                Text(value)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                
+                Text(unit)
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 2)
             }
         }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.backgroundPrimary)
+                .shadow(color: color.opacity(0.1), radius: 3, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.2), lineWidth: 1)
+        )
     }
     
     // 体重記録カード
@@ -451,34 +531,59 @@ struct HealthLogView: View {
     
     // ペット未選択時のビュー
     private var noPetSelectedView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "pawprint.circle")
-                .font(.system(size: 80))
-                .foregroundColor(.secondaryApp)
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.secondaryApp.opacity(0.2), Color.secondaryApp.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
+                
+                Image(systemName: "pawprint.circle")
+                    .font(.system(size: 60))
+                    .foregroundColor(Color.secondaryApp)
+            }
             
             Text("ペットが選択されていません")
                 .font(.title2)
-                .fontWeight(.medium)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
             
             Text("「ペット」タブでペットを選択してください")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
+                .padding(.horizontal, 32)
             
             if !petViewModel.pets.isEmpty {
                 Button(action: {
                     petViewModel.selectPet(id: petViewModel.pets[0].id)
                 }) {
                     Text("最初のペットを選択")
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
+                        .font(.headline)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.primaryApp, Color.primaryApp.opacity(0.8)]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .cornerRadius(Constants.Layout.cornerRadius)
+                        .shadow(color: Color.primaryApp.opacity(0.3), radius: 4, x: 0, y: 3)
                 }
-                .primaryButtonStyle()
             }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.backgroundPrimary)
     }
     
     // 空の状態表示

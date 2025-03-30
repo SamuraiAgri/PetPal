@@ -1,4 +1,4 @@
-// PetPal/Views/Main/PetListView.swift の修正（一部抜粋）
+// PetPal/Views/Main/PetListView.swift
 import SwiftUI
 import PhotosUI
 
@@ -174,9 +174,22 @@ struct PetListView: View {
     // 空の状態表示
     private var emptyStateView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "pawprint.circle")
-                .font(.system(size: 80))
-                .foregroundColor(.secondaryApp)
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.secondaryApp.opacity(0.2), Color.secondaryApp.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
+                
+                Image(systemName: "pawprint.circle")
+                    .font(.system(size: 60))
+                    .foregroundColor(.secondaryApp)
+            }
             
             Text("ペットが登録されていません")
                 .font(.title2)
@@ -186,65 +199,94 @@ struct PetListView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            // 空の状態表示（続き）
-                        .padding(.horizontal)
+                .padding(.horizontal)
                         
-                        Button(action: {
-                            showingAddPet = true
-                        }) {
-                            Text("ペットを追加")
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 12)
-                        }
-                        .primaryButtonStyle()
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-
-            // PetCardView - ペット一覧の各カード
-            struct PetCardView: View {
-                let pet: PetModel
-                let isSelected: Bool
-                
-                var body: some View {
-                    HStack(spacing: 16) {
-                        // ペットアバター
-                        PetAvatarView(imageData: pet.iconImageData, size: 60)
-                        
-                        // ペット情報
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(pet.name)
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                            
-                            Text(pet.species + (pet.breed.isEmpty ? "" : " / \(pet.breed)"))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            Text("年齢: \(pet.age)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // 選択マーク
-                        if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.primaryApp)
-                                .font(.title3)
-                        }
-                    }
-                    .padding()
+            Button(action: {
+                showingAddPet = true
+            }) {
+                Text("ペットを追加")
+                    .font(.headline)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 14)
                     .background(
-                        RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
-                            .fill(isSelected ? Color.primaryApp.opacity(0.1) : Color.backgroundPrimary)
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.primaryApp, Color.primaryApp.opacity(0.8)]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
-                            .stroke(isSelected ? Color.primaryApp : Color.gray.opacity(0.3), lineWidth: isSelected ? 2 : 1)
-                    )
+                    .foregroundColor(.white)
+                    .cornerRadius(Constants.Layout.cornerRadius)
+                    .shadow(color: Color.primaryApp.opacity(0.3), radius: 4, x: 0, y: 3)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// PetCardView - ペット一覧の各カード
+struct PetCardView: View {
+    let pet: PetModel
+    let isSelected: Bool
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // ペットアバターを少し大きくし、影を追加
+            PetAvatarView(imageData: pet.iconImageData, size: 70)
+                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 1, y: 2)
+            
+            // ペット情報をより魅力的に表示
+            VStack(alignment: .leading, spacing: 6) {
+                Text(pet.name)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color.textPrimary)
+                
+                HStack {
+                    Image(systemName: pet.gender == "オス" ? "mars" : pet.gender == "メス" ? "venus" : "questionmark")
+                        .foregroundColor(pet.gender == "オス" ? .blue : pet.gender == "メス" ? .pink : .gray)
+                        .font(.footnote)
+                    
+                    Text(pet.species + (pet.breed.isEmpty ? "" : " / \(pet.breed)"))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundColor(.accentApp)
+                    
+                    Text("年齢: \(pet.age)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
+            
+            Spacer()
+            
+            // 選択マークをより目立たせる
+            if isSelected {
+                VStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.primaryApp)
+                        .font(.title3)
+                        .shadow(color: Color.primaryApp.opacity(0.3), radius: 2, x: 0, y: 1)
+                        .padding(.trailing, 4)
+                }
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
+                .fill(isSelected ? Color.primaryApp.opacity(0.1) : Color.backgroundPrimary)
+                .shadow(color: Color.black.opacity(isSelected ? 0.1 : 0.05), radius: 5, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Constants.Layout.cornerRadius)
+                .stroke(isSelected ? Color.primaryApp : Color.gray.opacity(0.1), lineWidth: isSelected ? 2 : 1)
+        )
+    }
+}

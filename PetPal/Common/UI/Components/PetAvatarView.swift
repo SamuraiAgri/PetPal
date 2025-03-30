@@ -14,23 +14,31 @@ struct PetAvatarView: View {
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        .stroke(Color.white, lineWidth: 3)
+                        .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 0)
                 )
+                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         } else {
-            // デフォルト画像
+            // デフォルト画像をより魅力的に
             ZStack {
                 Circle()
-                    .fill(Color.secondaryApp.opacity(0.2))
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: [Color.secondaryApp.opacity(0.7), Color.secondaryApp.opacity(0.3)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
                 
                 Image(systemName: "pawprint.fill")
                     .font(.system(size: size * 0.4))
-                    .foregroundColor(Color.secondaryApp)
+                    .foregroundColor(.white)
             }
             .frame(width: size, height: size)
             .overlay(
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    .stroke(Color.white, lineWidth: 3)
+                    .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 0)
             )
+            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
     }
 }

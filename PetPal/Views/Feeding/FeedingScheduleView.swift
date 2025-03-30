@@ -113,10 +113,10 @@ struct FeedingScheduleView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, 12)
             
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: 16) {
                     Button(action: {
                         if let petId = petViewModel.selectedPet?.id {
                             feedingViewModel.addFeedingLog(
@@ -178,24 +178,44 @@ struct FeedingScheduleView: View {
                     }
                 }
                 .padding(.horizontal)
+                .padding(.bottom, 12)
             }
-            .padding(.bottom, 8)
         }
-        .background(Color.backgroundSecondary.opacity(0.3))
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.feedingApp.opacity(0.15), Color.backgroundSecondary.opacity(0.3)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+        .padding(.horizontal, 12)
     }
-    
-    // クイック給餌ボタン
+
     private func quickFeedingButton(title: String, amount: String, icon: String) -> some View {
         VStack {
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.feedingApp.opacity(0.2))
-                    .frame(width: 100, height: 80)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.feedingApp.opacity(0.3), Color.feedingApp.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 110, height: 90)
+                    .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
                 
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     Image(systemName: icon)
-                        .font(.title3)
+                        .font(.title2)
                         .foregroundColor(.feedingApp)
+                        .padding(8)
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .shadow(color: Color.feedingApp.opacity(0.3), radius: 2, x: 0, y: 1)
+                        )
                     
                     Text(title)
                         .font(.caption)
@@ -253,34 +273,59 @@ struct FeedingScheduleView: View {
     
     // ペット未選択時のビュー
     private var noPetSelectedView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "pawprint.circle")
-                .font(.system(size: 80))
-                .foregroundColor(.secondaryApp)
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.secondaryApp.opacity(0.2), Color.secondaryApp.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
+                
+                Image(systemName: "pawprint.circle")
+                    .font(.system(size: 60))
+                    .foregroundColor(Color.secondaryApp)
+            }
             
             Text("ペットが選択されていません")
                 .font(.title2)
-                .fontWeight(.medium)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
             
             Text("「ペット」タブでペットを選択してください")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
+                .padding(.horizontal, 32)
             
             if !petViewModel.pets.isEmpty {
                 Button(action: {
                     petViewModel.selectPet(id: petViewModel.pets[0].id)
                 }) {
                     Text("最初のペットを選択")
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
+                        .font(.headline)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.primaryApp, Color.primaryApp.opacity(0.8)]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .cornerRadius(Constants.Layout.cornerRadius)
+                        .shadow(color: Color.primaryApp.opacity(0.3), radius: 4, x: 0, y: 3)
                 }
-                .primaryButton()  // primaryButtonStyle() を primaryButton() に変更
             }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.backgroundPrimary)
     }
     
     private func fetchLogsForSelectedDate(petId: UUID) {
