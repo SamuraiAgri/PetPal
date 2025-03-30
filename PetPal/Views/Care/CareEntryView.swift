@@ -3,11 +3,11 @@ import SwiftUI
 struct CareEntryView: View {
     let pet: PetModel
     @ObservedObject var careViewModel: CareViewModel
+    @ObservedObject var userProfileViewModel: UserProfileViewModel
     @Environment(\.dismiss) private var dismiss
     
     @State private var selectedType = Constants.CareTypes.all[0]
     @State private var notes = ""
-    @State private var performedBy = UIDevice.current.name // デフォルトは現在のデバイス名
     @State private var date = Date()
     @State private var showingMultiSelect = false
     @State private var selectedTypes: [String] = []
@@ -18,8 +18,51 @@ struct CareEntryView: View {
                 Section(header: Text("ペット")) {
                     HStack {
                         PetAvatarView(imageData: pet.iconImageData, size: 40)
-                        Text(pet.name)
-                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(pet.name)
+                                .font(.headline)
+                            
+                            // 共有ステータスを表示
+                            if pet.isShared {
+                                HStack {
+                                    Image(systemName: "person.2.fill")
+                                        .font(.caption2)
+                                    Text("家族と共有中")
+                                        .font(.caption)
+                                }
+                                .foregroundColor(.infoApp)
+                            }
+                        }
+                    }
+                }
+                
+                Section(header: Text("実施者")) {
+                    HStack {
+                        if let currentUser = userProfileViewModel.currentUser {
+                            // ユーザーアバター
+                            if let avatarData = currentUser.avatarImageData, let uiImage = UIImage(data: avatarData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(Color(hex: currentUser.colorHex) ?? .accentApp)
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Text(String(currentUser.name.prefix(1)))
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                    )
+                            }
+                            
+                            Text(currentUser.name)
+                                .padding(.leading, 8)
+                        } else {
+                            Text(UIDevice.current.name)
+                        }
                     }
                 }
                 
@@ -77,9 +120,6 @@ struct CareEntryView: View {
                 
                 Section(header: Text("詳細")) {
                     TextField("メモ (任意)", text: $notes)
-                    
-                    TextField("実施者", text: $performedBy)
-                    
                     DatePicker("日時", selection: $date)
                 }
             }
@@ -132,23 +172,20 @@ struct CareEntryView: View {
     // 保存アクション
     private func saveAction() {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedPerformedBy = performedBy.isEmpty ? UIDevice.current.name : performedBy.trimmingCharacters(in: .whitespacesAndNewlines)
         
         if showingMultiSelect && !selectedTypes.isEmpty {
             // 複数のケアタイプを一度に保存
             careViewModel.addMultipleCare(
                 petId: pet.id,
                 types: selectedTypes,
-                notes: trimmedNotes,
-                performedBy: trimmedPerformedBy
+                notes: trimmedNotes
             )
         } else {
             // 単一のケアタイプを保存
             careViewModel.addCareLog(
                 petId: pet.id,
                 type: selectedType,
-                notes: trimmedNotes,
-                performedBy: trimmedPerformedBy
+                notes: trimmedNotes
             )
         }
         

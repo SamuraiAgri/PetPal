@@ -17,6 +17,13 @@ struct PetModel: Identifiable, Equatable {
     var cloudKitRecordID: String?
     var isActive: Bool
     
+    // 共有関連のプロパティ
+    var isShared: Bool = false
+    var shareURL: URL? = nil
+    var shareTitle: String? = nil
+    var sharedWithUserIDs: [String] = [] // 共有先のユーザーIDリスト
+    var sharedWithProfiles: [UserProfileModel] = [] // 共有先のユーザープロファイル
+    
     // Equatableプロトコル準拠
     static func == (lhs: PetModel, rhs: PetModel) -> Bool {
         return lhs.id == rhs.id
@@ -36,6 +43,19 @@ struct PetModel: Identifiable, Equatable {
         self.updatedAt = entity.updatedAt ?? Date()
         self.cloudKitRecordID = entity.cloudKitRecordID
         self.isActive = entity.isActive
+        self.isShared = entity.isShared
+        
+        // URL文字列からURLに変換
+        if let shareURLString = entity.shareURL, let url = URL(string: shareURLString) {
+            self.shareURL = url
+        }
+        
+        self.shareTitle = entity.shareTitle
+        
+        // 共有ユーザーIDのデコード
+        if let sharedWithData = entity.sharedWithUserIDs, let sharedArray = try? JSONDecoder().decode([String].self, from: sharedWithData) {
+            self.sharedWithUserIDs = sharedArray
+        }
     }
     
     // 新規ペット作成用の初期化
@@ -52,6 +72,8 @@ struct PetModel: Identifiable, Equatable {
         self.updatedAt = Date()
         self.cloudKitRecordID = nil
         self.isActive = true
+        self.isShared = false
+        self.sharedWithUserIDs = []
     }
     
     // CoreDataエンティティを更新
@@ -67,6 +89,20 @@ struct PetModel: Identifiable, Equatable {
         entity.updatedAt = Date()
         entity.cloudKitRecordID = self.cloudKitRecordID
         entity.isActive = self.isActive
+        entity.isShared = self.isShared
+        
+        // URLをstring形式で保存
+        entity.shareURL = self.shareURL?.absoluteString
+        entity.shareTitle = self.shareTitle
+        
+        // 共有ユーザーIDをJSONエンコード
+        if !self.sharedWithUserIDs.isEmpty {
+            if let data = try? JSONEncoder().encode(self.sharedWithUserIDs) {
+                entity.sharedWithUserIDs = data
+            }
+        } else {
+            entity.sharedWithUserIDs = nil
+        }
     }
     
     // ペットの年齢を計算
@@ -107,6 +143,7 @@ struct PetModel: Identifiable, Equatable {
         record["createdAt"] = createdAt as CKRecordValue
         record["updatedAt"] = updatedAt as CKRecordValue
         record["isActive"] = isActive as CKRecordValue
+        record["isShared"] = isShared as CKRecordValue
         
         return record
     }

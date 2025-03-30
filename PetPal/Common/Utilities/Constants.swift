@@ -52,7 +52,14 @@ struct Constants {
     struct CloudKit {
         static let containerIdentifier = "iCloud.com.samuraiagri.PetPal"
         static let petZoneName = "PetZone"
+        static let userZoneName = "UserZone"
+        static let careZoneName = "CareZone"
         static let syncInterval: TimeInterval = 60 // 1分間隔で同期
+        
+        // 共有関連
+        static let maxShareParticipants = 10 // 最大共有人数
+        static let shareInvitationSubject = "ペットのケア情報を共有します"
+        static let shareInvitationBody = "PetPalアプリでペットの情報を共有するよう招待されました。リンクをタップして承認してください。"
     }
     
     // MARK: - 通知
@@ -60,5 +67,23 @@ struct Constants {
         static let feedingReminderCategory = "FEEDING_REMINDER"
         static let careReminderCategory = "CARE_REMINDER"
         static let vaccinationReminderCategory = "VACCINATION_REMINDER"
+        static let sharedPetUpdateCategory = "SHARED_PET_UPDATE"
+        static let careAssignmentCategory = "CARE_ASSIGNMENT"
+    }
+    
+    // MARK: - ケアスケジュール
+    struct CareSchedule {
+        static let maxDaysInAdvance = 30 // 何日先まで予定を設定できるか
+        static let reminderTimeBeforeCare = 30 // ケア予定の何分前に通知するか
+    }
+    
+    // MARK: - ケア記録ラベル
+    struct CareLabels {
+        static let doneByCurrentUser = "あなたが実施"
+        static let doneByOthers = "が実施"
+        static let scheduledLabel = "予定:"
+        static let assignedToYou = "あなたの担当"
+        static let assignedToOthers = "の担当"
+        static let unassigned = "担当者未設定"
     }
 }
