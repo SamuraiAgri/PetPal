@@ -140,4 +140,43 @@ class NotificationManager {
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
+    
+    // すべての給餌通知をキャンセル
+    func cancelAllFeedingNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let feedingRequests = requests.filter { request in
+                return request.content.categoryIdentifier == Constants.Notification.feedingReminderCategory
+            }
+            
+            let identifiers = feedingRequests.map { $0.identifier }
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
+    }
+
+    // 給餌時間リマインダーを複数設定
+    func scheduleFeedingReminders(petId: UUID, petName: String, times: [Date]) {
+        // 既存の給餌リマインダーをキャンセル
+        cancelFeedingNotificationsForPet(petId: petId)
+        
+        // 新しいリマインダーを設定
+        for time in times {
+            scheduleFeedingReminder(petId: petId, petName: petName, time: time)
+        }
+    }
+
+    // 特定ペットの給餌通知をキャンセル
+    func cancelFeedingNotificationsForPet(petId: UUID) {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let petFeedingRequests = requests.filter { request in
+                if let requestPetId = request.content.userInfo["petId"] as? String,
+                   request.content.categoryIdentifier == Constants.Notification.feedingReminderCategory {
+                    return requestPetId == petId.uuidString
+                }
+                return false
+            }
+            
+            let identifiers = petFeedingRequests.map { $0.identifier }
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
+    }
 }

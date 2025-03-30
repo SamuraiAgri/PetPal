@@ -1,4 +1,5 @@
 // PetPal/Views/Main/MainTabView.swift
+
 import SwiftUI
 import CoreData
 
@@ -7,6 +8,8 @@ struct MainTabView: View {
     @StateObject private var careViewModel = CareViewModel()
     @StateObject private var feedingViewModel = FeedingViewModel()
     @StateObject private var healthViewModel = HealthViewModel()
+    
+    @State private var showingSettings = false
     
     init(context: NSManagedObjectContext) {
         _petViewModel = StateObject(wrappedValue: PetViewModel(context: context))
@@ -40,6 +43,33 @@ struct MainTabView: View {
                 }
         }
         .tint(Color.primaryApp)
+        .overlay(
+            // 設定ボタンオーバーレイ
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.title2)
+                            .foregroundColor(.primaryApp)
+                            .padding(12)
+                            .background(
+                                Circle()
+                                    .fill(Color.backgroundPrimary)
+                                    .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
+                            )
+                    }
+                    .padding()
+                }
+                Spacer()
+            }
+        )
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(petViewModel)
+        }
         .environmentObject(petViewModel)
     }
 }
