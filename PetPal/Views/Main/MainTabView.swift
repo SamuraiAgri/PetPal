@@ -1,4 +1,6 @@
+// PetPal/Views/Main/MainTabView.swift
 import SwiftUI
+import CoreData
 
 struct MainTabView: View {
     @StateObject private var petViewModel: PetViewModel

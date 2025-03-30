@@ -1,3 +1,4 @@
+// PetPal/Views/Pet/PetEditView.swift
 import SwiftUI
 import PhotosUI
 
@@ -217,49 +218,38 @@ struct PHPickerView: UIViewControllerRepresentable {
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
             
-            guard let provider = results.first?.itemProvider else
-                class Coordinator: NSObject, PHPickerViewControllerDelegate {
-                        let parent: PHPickerView
-                        
-                        init(_ parent: PHPickerView) {
-                            self.parent = parent
-                        }
-                        
-                        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-                            picker.dismiss(animated: true)
-                            
-                            guard let provider = results.first?.itemProvider else { return }
-                            
-                            if provider.canLoadObject(ofClass: UIImage.self) {
-                                provider.loadObject(ofClass: UIImage.self) { image, error in
-                                    DispatchQueue.main.async {
-                                        if let image = image as? UIImage {
-                                            // 画像のリサイズ（容量削減のため）
-                                            let maxSize: CGFloat = 500
-                                            let resizedImage = self.resizeImage(image, targetSize: CGSize(width: maxSize, height: maxSize))
-                                            self.parent.image = resizedImage
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // 画像のリサイズ処理
-                        private func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage {
-                            let size = image.size
-                            let widthRatio  = targetSize.width  / size.width
-                            let heightRatio = targetSize.height / size.height
-                            let ratio = min(widthRatio, heightRatio)
-                            
-                            let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-                            let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
-                            
-                            UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-                            image.draw(in: rect)
-                            let newImage = UIGraphicsGetImageFromCurrentImageContext()
-                            UIGraphicsEndImageContext()
-                            
-                            return newImage ?? image
+            guard let provider = results.first?.itemProvider else { return }
+            
+            if provider.canLoadObject(ofClass: UIImage.self) {
+                provider.loadObject(ofClass: UIImage.self) { image, error in
+                    DispatchQueue.main.async {
+                        if let image = image as? UIImage {
+                            // 画像のリサイズ（容量削減のため）
+                            let maxSize: CGFloat = 500
+                            let resizedImage = self.resizeImage(image, targetSize: CGSize(width: maxSize, height: maxSize))
+                            self.parent.image = resizedImage
                         }
                     }
                 }
+            }
+        }
+        
+        // 画像のリサイズ処理
+        private func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage {
+            let size = image.size
+            let widthRatio  = targetSize.width  / size.width
+            let heightRatio = targetSize.height / size.height
+            let ratio = min(widthRatio, heightRatio)
+            
+            let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+            let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+            
+            UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+            image.draw(in: rect)
+            let newImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+            
+            return newImage ?? image
+        }
+    }
+}

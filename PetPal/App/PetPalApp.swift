@@ -1,4 +1,6 @@
+// PetPal/App/PetPalApp.swift
 import SwiftUI
+import CoreData
 
 @main
 struct PetPalApp: App {
@@ -50,35 +52,30 @@ struct PersistenceController {
         container = NSPersistentCloudKitContainer(name: "PetPal")
         
         if inMemory {
-            container.persistentStoreDescriptions.first!.url = URL(file
-                                                                   init(inMemory: Bool = false) {
-                                                                           container = NSPersistentCloudKitContainer(name: "PetPal")
-                                                                           
-                                                                           if inMemory {
-                                                                               container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
-                                                                           }
-                                                                           
-                                                                           // CloudKit同期の設定
-                                                                           guard let description = container.persistentStoreDescriptions.first else {
-                                                                               fatalError("Failed to retrieve a persistent store description.")
-                                                                           }
-                                                                           
-                                                                           description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
-                                                                               containerIdentifier: Constants.CloudKit.containerIdentifier
-                                                                           )
-                                                                           
-                                                                           // 自動マージポリシーの設定
-                                                                           description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-                                                                           description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-                                                                           
-                                                                           container.loadPersistentStores { (_, error) in
-                                                                               if let error = error as NSError? {
-                                                                                   // CloudKit同期に失敗してもローカルでは動作するように、エラーはログだけ残す
-                                                                                   print("Persistent store loading error: \(error), \(error.userInfo)")
-                                                                               }
-                                                                           }
-                                                                           
-                                                                           container.viewContext.automaticallyMergesChangesFromParent = true
-                                                                           container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-                                                                       }
-                                                                   }
+            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        }
+        
+        // CloudKit同期の設定
+        guard let description = container.persistentStoreDescriptions.first else {
+            fatalError("Failed to retrieve a persistent store description.")
+        }
+        
+        description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
+            containerIdentifier: Constants.CloudKit.containerIdentifier
+        )
+        
+        // 自動マージポリシーの設定
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        
+        container.loadPersistentStores { (_, error) in
+            if let error = error as NSError? {
+                // CloudKit同期に失敗してもローカルでは動作するように、エラーはログだけ残す
+                print("Persistent store loading error: \(error), \(error.userInfo)")
+            }
+        }
+        
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+    }
+}

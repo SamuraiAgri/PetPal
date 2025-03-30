@@ -1,3 +1,4 @@
+// PetPal/ViewModels/FeedingViewModel.swift
 import Foundation
 import CoreData
 import SwiftUI
@@ -65,7 +66,8 @@ class FeedingViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit 同期
+            // CloudKit 同期 - saveFeedingLogメソッドは未実装なのでコメントアウト
+            /*
             let feedingLogModel = FeedingLogModel(entity: feedingLog)
             cloudKitManager.saveFeedingLog(feedingLogModel) { result in
                 DispatchQueue.main.async {
@@ -83,6 +85,12 @@ class FeedingViewModel: ObservableObject {
                     self.isLoading = false
                 }
             }
+            */
+            
+            // CloudKit同期を省略してローカル更新のみ
+            self.fetchFeedingLogs(for: petId)
+            self.isLoading = false
+            
         } catch {
             errorMessage = "給餌記録の保存に失敗しました: \(error.localizedDescription)"
             print("Error saving feeding log: \(error)")

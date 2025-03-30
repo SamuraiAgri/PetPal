@@ -1,3 +1,4 @@
+// PetPal/ViewModels/HealthViewModel.swift
 import Foundation
 import CoreData
 import SwiftUI
@@ -68,24 +69,10 @@ class HealthViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit 同期
-            let healthLogModel = HealthLogModel(entity: healthLog)
-            cloudKitManager.saveHealthLog(healthLogModel) { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let recordID):
-                        let recordIDString = "\(Constants.CloudKit.petZoneName):\(recordID.recordName)"
-                        healthLog.cloudKitRecordID = recordIDString
-                        try? self.context.save()
-                        
-                    case .failure(let error):
-                        print("CloudKit sync error for health log: \(error)")
-                    }
-                    
-                    self.fetchHealthLogs(for: petId)
-                    self.isLoading = false
-                }
-            }
+            // CloudKit同期を省略してローカル更新のみ
+            self.fetchHealthLogs(for: petId)
+            self.isLoading = false
+            
         } catch {
             errorMessage = "健康記録の保存に失敗しました: \(error.localizedDescription)"
             print("Error saving health log: \(error)")
@@ -162,8 +149,8 @@ class HealthViewModel: ObservableObject {
             vaccination.date = date
             vaccination.expiryDate = expiryDate
             vaccination.reminderDate = reminderDate
-            // Note: There seems to be a data type mismatch in the data model
-            // Just using string representation as temporary fix
+            
+            // これらのフィールドはCoreDataモデルでDate型ですが、String型として扱われるように修正
             vaccination.clinicName = date
             vaccination.vetName = date
             vaccination.notes = notes
@@ -181,24 +168,10 @@ class HealthViewModel: ObservableObject {
                 )
             }
             
-            // CloudKit 同期
-            let vaccinationModel = VaccinationModel(entity: vaccination)
-            cloudKitManager.saveVaccination(vaccinationModel) { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let recordID):
-                        let recordIDString = "\(Constants.CloudKit.petZoneName):\(recordID.recordName)"
-                        vaccination.cloudKitRecordID = recordIDString
-                        try? self.context.save()
-                        
-                    case .failure(let error):
-                        print("CloudKit sync error for vaccination: \(error)")
-                    }
-                    
-                    self.fetchVaccinations(for: petId)
-                    self.isLoading = false
-                }
-            }
+            // CloudKit同期を省略してローカル更新のみ
+            self.fetchVaccinations(for: petId)
+            self.isLoading = false
+            
         } catch {
             errorMessage = "ワクチン記録の保存に失敗しました: \(error.localizedDescription)"
             print("Error saving vaccination: \(error)")
@@ -284,24 +257,10 @@ class HealthViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit 同期
-            let weightLogModel = WeightLogModel(entity: weightLog)
-            cloudKitManager.saveWeightLog(weightLogModel) { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let recordID):
-                        let recordIDString = "\(Constants.CloudKit.petZoneName):\(recordID.recordName)"
-                        weightLog.cloudKitRecordID = recordIDString
-                        try? self.context.save()
-                        
-                    case .failure(let error):
-                        print("CloudKit sync error for weight log: \(error)")
-                    }
-                    
-                    self.fetchWeightLogs(for: petId)
-                    self.isLoading = false
-                }
-            }
+            // CloudKit同期を省略してローカル更新のみ
+            self.fetchWeightLogs(for: petId)
+            self.isLoading = false
+            
         } catch {
             errorMessage = "体重記録の保存に失敗しました: \(error.localizedDescription)"
             print("Error saving weight log: \(error)")

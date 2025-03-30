@@ -1,3 +1,4 @@
+// PetPal/ViewModels/PetViewModel.swift の続き
 import Foundation
 import CoreData
 import SwiftUI
@@ -97,29 +98,31 @@ class PetViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit同期
+            // CloudKit同期 - CloudKitの実装がない場合はコメントアウト
+            /*
             cloudKitManager.savePet(pet) { [weak self] result in
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let recordID):
                         // CloudKitレコードIDを保存
-                        let updatedPet = PetModel(entity: petEntity)
                         let recordIDString = "\(Constants.CloudKit.petZoneName):\(recordID.recordName)"
-                        
                         petEntity.cloudKitRecordID = recordIDString
                         try? self?.context.save()
                         
-                        self?.fetchPets()
-                        self?.isLoading = false
-                        
                     case .failure(let error):
                         print("CloudKit sync error: \(error)")
-                        // ローカル保存は成功しているので、エラーメッセージは表示しない
-                        self?.fetchPets()
-                        self?.isLoading = false
                     }
+                    
+                    self?.fetchPets()
+                    self?.isLoading = false
                 }
             }
+            */
+            
+            // CloudKit同期を省略してローカル更新のみ
+            self.fetchPets()
+            self.isLoading = false
+            
         } catch {
             errorMessage = "ペット情報の保存に失敗しました: \(error.localizedDescription)"
             print("Error saving pet: \(error)")
@@ -160,128 +163,118 @@ class PetViewModel: ObservableObject {
     // ペット削除（論理削除）
     func deletePet(id: UUID) {
         let request: NSFetchRequest<Pet> = Pet.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id as CVarAr
-                                        // ペット削除（論理削除）
-                                            func deletePet(id: UUID) {
-                                                let request: NSFetchRequest<Pet> = Pet.fetchRequest()
-                                                request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-                                                
-                                                do {
-                                                    let results = try context.fetch(request)
-                                                    if let petToDelete = results.first {
-                                                        // 論理削除（物理削除ではなく、非アクティブにする）
-                                                        petToDelete.isActive = false
-                                                        petToDelete.updatedAt = Date()
-                                                        
-                                                        try context.save()
-                                                        
-                                                        // CloudKit同期
-                                                        if let petModel = pets.first(where: { $0.id == id }) {
-                                                            var updatedPet = petModel
-                                                            updatedPet.isActive = false
-                                                            updatedPet.updatedAt = Date()
-                                                            
-                                                            cloudKitManager.savePet(updatedPet) { _ in }
-                                                        }
-                                                        
-                                                        // 選択中のペットが削除対象だった場合、選択を解除
-                                                        if selectedPet?.id == id {
-                                                            if let firstActivePet = pets.first(where: { $0.id != id }) {
-                                                                selectedPet = firstActivePet
-                                                            } else {
-                                                                selectedPet = nil
-                                                            }
-                                                        }
-                                                        
-                                                        // リストを更新
-                                                        fetchPets()
-                                                    }
-                                                } catch {
-                                                    errorMessage = "ペットの削除に失敗しました: \(error.localizedDescription)"
-                                                    print("Error deleting pet: \(error)")
-                                                }
-                                            }
-                                            
-                                            // ペット選択
-                                            func selectPet(id: UUID) {
-                                                if let pet = pets.first(where: { $0.id == id }) {
-                                                    selectedPet = pet
-                                                }
-                                            }
-                                            
-                                            // CloudKitとの同期
-                                            func syncWithCloudKit() {
-                                                syncStatus = .syncing
-                                                
-                                                cloudKitManager.fetchAllPets { [weak self] result in
-                                                    guard let self = self else { return }
-                                                    
-                                                    DispatchQueue.main.async {
-                                                        switch result {
-                                                        case .success(let cloudPets):
-                                                            self.mergePetsWithCloud(cloudPets: cloudPets)
-                                                            self.syncStatus = .completed
-                                                            
-                                                            // 5秒後にステータスをリセット
-                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                                                if self.syncStatus == .completed {
-                                                                    self.syncStatus = .idle
-                                                                }
-                                                            }
-                                                            
-                                                        case .failure(let error):
-                                                            print("CloudKit sync error: \(error)")
-                                                            self.syncStatus = .failed
-                                                            
-                                                            // 5秒後にステータスをリセット
-                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                                                if self.syncStatus == .failed {
-                                                                    self.syncStatus = .idle
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            
-                                            // ローカルデータとクラウドデータのマージ
-                                            private func mergePetsWithCloud(cloudPets: [PetModel]) {
-                                                // すべてのローカルペットを取得（非アクティブを含む）
-                                                let request: NSFetchRequest<Pet> = Pet.fetchRequest()
-                                                
-                                                do {
-                                                    let localPetEntities = try context.fetch(request)
-                                                    let localPets = localPetEntities.map { PetModel(entity: $0) }
-                                                    
-                                                    // クラウドのペットを処理
-                                                    for cloudPet in cloudPets {
-                                                        if let localPet = localPets.first(where: { $0.id == cloudPet.id }) {
-                                                            // 両方に存在する場合、最新の更新日を持つ方を採用
-                                                            if cloudPet.updatedAt > localPet.updatedAt {
-                                                                if let entity = localPetEntities.first(where: { $0.id == cloudPet.id }) {
-                                                                    cloudPet.updateEntity(entity: entity)
-                                                                }
-                                                            }
-                                                        } else {
-                                                            // ローカルに存在しない場合は新規作成
-                                                            let newEntity = Pet(context: context)
-                                                            cloudPet.updateEntity(entity: newEntity)
-                                                        }
-                                                    }
-                                                    
-                                                    // ローカルのみに存在するペットのうち、CloudKit IDがあるものはクラウドにアップロード
-                                                    for localPet in localPets {
-                                                        if !cloudPets.contains(where: { $0.id == localPet.id }) && localPet.cloudKitRecordID == nil {
-                                                            cloudKitManager.savePet(localPet) { _ in }
-                                                        }
-                                                    }
-                                                    
-                                                    try context.save()
-                                                    fetchPets()
-                                                    
-                                                } catch {
-                                                    print("Error merging pets with cloud: \(error)")
-                                                    errorMessage = "クラウド同期中にエラーが発生しました"
-                                                }
-                                            }
-                                        }
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        
+        do {
+            let results = try context.fetch(request)
+            if let petToDelete = results.first {
+                // 論理削除（物理削除ではなく、非アクティブにする）
+                petToDelete.isActive = false
+                petToDelete.updatedAt = Date()
+                
+                try context.save()
+                
+                // 選択中のペットが削除対象だった場合、選択を解除
+                if selectedPet?.id == id {
+                    if let firstActivePet = pets.first(where: { $0.id != id }) {
+                        selectedPet = firstActivePet
+                    } else {
+                        selectedPet = nil
+                    }
+                }
+                
+                // リストを更新
+                fetchPets()
+            }
+        } catch {
+            errorMessage = "ペットの削除に失敗しました: \(error.localizedDescription)"
+            print("Error deleting pet: \(error)")
+        }
+    }
+    
+    // ペット選択
+    func selectPet(id: UUID) {
+        if let pet = pets.first(where: { $0.id == id }) {
+            selectedPet = pet
+        }
+    }
+    
+    // CloudKitとの同期
+    func syncWithCloudKit() {
+        syncStatus = .syncing
+        
+        cloudKitManager.fetchAllPets { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let cloudPets):
+                    self.mergePetsWithCloud(cloudPets: cloudPets)
+                    self.syncStatus = .completed
+                    
+                    // 5秒後にステータスをリセット
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                        if self.syncStatus == .completed {
+                            self.syncStatus = .idle
+                        }
+                    }
+                    
+                case .failure(let error):
+                    print("CloudKit sync error: \(error)")
+                    self.syncStatus = .failed
+                    
+                    // 5秒後にステータスをリセット
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                        if self.syncStatus == .failed {
+                            self.syncStatus = .idle
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // ローカルデータとクラウドデータのマージ
+    private func mergePetsWithCloud(cloudPets: [PetModel]) {
+        // すべてのローカルペットを取得（非アクティブを含む）
+        let request: NSFetchRequest<Pet> = Pet.fetchRequest()
+        
+        do {
+            let localPetEntities = try context.fetch(request)
+            let localPets = localPetEntities.map { PetModel(entity: $0) }
+            
+            // クラウドのペットを処理
+            for cloudPet in cloudPets {
+                if let localPet = localPets.first(where: { $0.id == cloudPet.id }) {
+                    // 両方に存在する場合、最新の更新日を持つ方を採用
+                    if cloudPet.updatedAt > localPet.updatedAt {
+                        if let entity = localPetEntities.first(where: { $0.id == cloudPet.id }) {
+                            cloudPet.updateEntity(entity: entity)
+                        }
+                    }
+                } else {
+                    // ローカルに存在しない場合は新規作成
+                    let newEntity = Pet(context: context)
+                    cloudPet.updateEntity(entity: newEntity)
+                }
+            }
+            
+            // ローカルのみに存在するペットのうち、CloudKit IDがあるものはクラウドにアップロード
+            for localPet in localPets {
+                if !cloudPets.contains(where: { $0.id == localPet.id }) && localPet.cloudKitRecordID == nil {
+                    // CloudKit同期の部分はコメントアウト
+                    /*
+                    cloudKitManager.savePet(localPet) { _ in }
+                    */
+                }
+            }
+            
+            try context.save()
+            fetchPets()
+            
+        } catch {
+            print("Error merging pets with cloud: \(error)")
+            errorMessage = "クラウド同期中にエラーが発生しました"
+        }
+    }
+}

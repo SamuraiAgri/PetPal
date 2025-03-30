@@ -1,3 +1,4 @@
+// PetPal/Common/Utilities/CloudKitManager.swift
 import Foundation
 import CloudKit
 import Combine
@@ -22,11 +23,12 @@ class CloudKitManager {
         let operation = CKModifyRecordZonesOperation(recordZonesToSave: [zone], recordZoneIDsToDelete: nil)
         operation.qualityOfService = .userInitiated
         
-        operation.modifyRecordZonesCompletionBlock = { _, _, error in
-            if let error = error {
-                print("Error creating custom zone: \(error)")
-            } else {
+        operation.modifyRecordZonesResultBlock = { result in
+            switch result {
+            case .success:
                 print("Custom zone created or already exists")
+            case .failure(let error):
+                print("Error creating custom zone: \(error)")
             }
         }
         
@@ -55,25 +57,29 @@ class CloudKitManager {
         let predicate = NSPredicate(format: "id == %@", id.uuidString)
         let query = CKQuery(recordType: "Pet", predicate: predicate)
         
-        database.perform(query, inZoneWith: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)) { records, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let record = records?.first else {
-                // レコードが見つからなかった場合
-                completion(.success(nil))
-                return
-            }
-            
-            self.petModelFromRecord(record) { result in
-                switch result {
-                case .success(let petModel):
-                    completion(.success(petModel))
-                case .failure(let error):
-                    completion(.failure(error))
+        // iOS 15.0以降の新しいAPI
+        let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
+        
+        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { result in
+            switch result {
+            case .success(let (matchResults, _)):
+                if let recordID = matchResults.first?.1 {
+                    self.database.fetch(withRecordID: recordID) { fetchResult in
+                        switch fetchResult {
+                        case .success(let record):
+                            self.petModelFromRecord(record) { result in
+                                completion(result)
+                            }
+                        case .failure(let error):
+                            completion(.failure(error))
+                        }
+                    }
+                } else {
+                    // レコードが見つからなかった場合
+                    completion(.success(nil))
                 }
+            case .failure(let error):
+                completion(.failure(error))
             }
         }
     }
@@ -83,42 +89,52 @@ class CloudKitManager {
         let query = CKQuery(recordType: "Pet", predicate: NSPredicate(value: true))
         query.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         
-        database.perform(query, inZoneWith: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)) { records, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let records = records else {
-                completion(.success([]))
-                return
-            }
-            
-            let group = DispatchGroup()
-            var petModels: [PetModel] = []
-            var fetchErrors: [Error] = []
-            
-            for record in records {
-                group.enter()
-                self.petModelFromRecord(record) { result in
-                    switch result {
-                    case .success(let petModel):
-                        if let model = petModel {
-                            petModels.append(model)
+        let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
+        
+        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
+            switch result {
+            case .success(let (matchResults, _)):
+                let recordIDs = matchResults.map { $0.1 }
+                let operation = CKFetchRecordsOperation(recordIDs: recordIDs)
+                
+                operation.fetchRecordsResultBlock = { operationResult in
+                    switch operationResult {
+                    case .success(let records):
+                        let group = DispatchGroup()
+                        var petModels: [PetModel] = []
+                        var fetchErrors: [Error] = []
+                        
+                        for record in records.values {
+                            group.enter()
+                            self.petModelFromRecord(record) { result in
+                                switch result {
+                                case .success(let petModel):
+                                    if let model = petModel {
+                                        petModels.append(model)
+                                    }
+                                case .failure(let error):
+                                    fetchErrors.append(error)
+                                }
+                                group.leave()
+                            }
+                        }
+                        
+                        group.notify(queue: .main) {
+                            if !fetchErrors.isEmpty {
+                                completion(.failure(fetchErrors.first!))
+                            } else {
+                                completion(.success(petModels))
+                            }
                         }
                     case .failure(let error):
-                        fetchErrors.append(error)
+                        completion(.failure(error))
                     }
-                    group.leave()
                 }
-            }
-            
-            group.notify(queue: .main) {
-                if !fetchErrors.isEmpty {
-                    completion(.failure(fetchErrors.first!))
-                } else {
-                    completion(.success(petModels))
-                }
+                
+                self.database.add(operation)
+                
+            case .failure(let error):
+                completion(.failure(error))
             }
         }
     }
@@ -172,8 +188,6 @@ class CloudKitManager {
         
         completion(.success(petModel))
     }
-    
-    // MARK: - CareLog関連操作
     
     // 以下に CareLog, FeedingLog, HealthLog などの同様の操作を実装
     // (紙面の都合で省略しますが、実際には同様のパターンで実装します)

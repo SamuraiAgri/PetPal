@@ -1,3 +1,4 @@
+// PetPal/Models/HealthModel.swift
 import Foundation
 import CoreData
 import CloudKit
@@ -81,6 +82,7 @@ struct VaccinationModel: Identifiable {
         self.date = entity.date ?? Date()
         self.expiryDate = entity.expiryDate
         self.reminderDate = entity.reminderDate
+        // Dateを文字列として扱う
         self.clinicName = entity.clinicName?.description ?? ""
         self.vetName = entity.vetName?.description ?? ""
         self.notes = entity.notes ?? ""

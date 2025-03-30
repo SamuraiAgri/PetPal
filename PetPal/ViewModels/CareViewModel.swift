@@ -1,3 +1,4 @@
+// PetPal/ViewModels/CareViewModel.swift
 import Foundation
 import CoreData
 import SwiftUI
@@ -64,7 +65,8 @@ class CareViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit 同期
+            // CloudKit 同期 - saveCareLogメソッドは未実装なのでコメントアウト
+            /*
             let careLogModel = CareLogModel(entity: careLog)
             cloudKitManager.saveCareLog(careLogModel) { result in
                 DispatchQueue.main.async {
@@ -82,6 +84,12 @@ class CareViewModel: ObservableObject {
                     self.isLoading = false
                 }
             }
+            */
+            
+            // CloudKit同期を省略してローカル更新のみ
+            self.fetchCareLogs(for: petId)
+            self.isLoading = false
+            
         } catch {
             errorMessage = "ケア記録の保存に失敗しました: \(error.localizedDescription)"
             print("Error saving care log: \(error)")
@@ -180,41 +188,5 @@ class CareViewModel: ObservableObject {
         }
         
         return countsByType
-    }
-}
-
-// CareLogModel 構造体
-struct CareLogModel: Identifiable {
-    var id: UUID
-    var type: String
-    var timestamp: Date
-    var notes: String
-    var performedBy: String
-    var cloudKitRecordID: String?
-    var isCompleted: Bool
-    var petId: UUID?
-    
-    // CoreDataエンティティからモデルを初期化
-    init(entity: CareLog) {
-        self.id = entity.id ?? UUID()
-        self.type = entity.type ?? ""
-        self.timestamp = entity.timestamp ?? Date()
-        self.notes = entity.notes ?? ""
-        self.performedBy = entity.performedBy ?? ""
-        self.cloudKitRecordID = entity.cloudKitRecordID
-        self.isCompleted = entity.isCompleted
-        self.petId = entity.pet?.id
-    }
-    
-    // 新規作成用の初期化
-    init(type: String, notes: String = "", performedBy: String = "", petId: UUID? = nil) {
-        self.id = UUID()
-        self.type = type
-        self.timestamp = Date()
-        self.notes = notes
-        self.performedBy = performedBy
-        self.cloudKitRecordID = nil
-        self.isCompleted = true
-        self.petId = petId
     }
 }
