@@ -66,7 +66,7 @@ struct CareLogView: View {
                     }
                 })
             }
-            .onChange(of: petViewModel.selectedPet) { newPet in
+            .onChange(of: petViewModel.selectedPet) { _, newPet in
                 if let petId = newPet?.id {
                     fetchLogsForSelectedDate(petId: petId)
                 }
@@ -191,211 +191,211 @@ struct CareLogView: View {
                                 Button(role: .destructive) {
                                     careViewModel.deleteCareLog(id: log.id)
                                 } label: {
-                                    Label("削除", systemImage: "trash")
-                                }
-                            }
-                    }
-                }
-            }
-        }
-    }
-    
-    // ペット未選択時のビュー
-    private var noPetSelectedView: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.secondaryApp.opacity(0.2), Color.secondaryApp.opacity(0.1)]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 120, height: 120)
-                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
-                
-                Image(systemName: "pawprint.circle")
-                    .font(.system(size: 60))
-                    .foregroundColor(Color.secondaryApp)
-            }
-            
-            Text("ペットが選択されていません")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .multilineTextAlignment(.center)
-            
-            Text("「ペット」タブでペットを選択してください")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            
-            if !petViewModel.pets.isEmpty {
-                Button(action: {
-                    petViewModel.selectPet(id: petViewModel.pets[0].id)
-                }) {
-                    Text("最初のペットを選択")
-                        .font(.headline)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.primaryApp, Color.primaryApp.opacity(0.8)]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .cornerRadius(Constants.Layout.cornerRadius)
-                        .shadow(color: Color.primaryApp.opacity(0.3), radius: 4, x: 0, y: 3)
-                }
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.backgroundPrimary)
-    }
-    
-    // ケアタイプに応じたアイコンを返す
-    private func careTypeIcon(for type: String) -> String {
-        switch type {
-        case Constants.CareTypes.walk:
-            return "figure.walk"
-        case Constants.CareTypes.feeding:
-            return "cup.and.saucer.fill"
-        case Constants.CareTypes.grooming:
-            return "scissors"
-        case Constants.CareTypes.medication:
-            return "pills.fill"
-        case Constants.CareTypes.healthCheck:
-            return "stethoscope"
-        default:
-            return "heart.fill"
-        }
-    }
-    
-    // 選択日付のログを取得
-    private func fetchLogsForSelectedDate(petId: UUID) {
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
-        
-        let context = PersistenceController.shared.container.viewContext
-        let request = NSFetchRequest<CareLog>(entityName: "CareLog")
-        request.predicate = NSPredicate(format: "pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
-                                         petId as CVarArg, startOfDay as CVarArg, endOfDay as CVarArg)
-        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
-        
-        do {
-            let fetchedLogs = try context.fetch(request)
-            careViewModel.careLogs = fetchedLogs.map { CareLogModel(entity: $0) }
-        } catch {
-            print("Error fetching care logs for date: \(error)")
-            careViewModel.careLogs = []
-        }
-    }
-}
-
-// 各ケア記録アイテムのビュー
-struct CareLogItemView: View {
-    let log: CareLogModel
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // ケアタイプアイコン
-            ZStack {
-                Circle()
-                    .fill(Color.forCareType(log.type).opacity(0.2))
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: iconForCareType(log.type))
-                                    .foregroundColor(Color.forCareType(log.type))
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(log.type)
-                                    .font(.headline)
-                                
-                                Text(log.timestamp.formattedTime)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                
-                                if !log.notes.isEmpty {
-                                    Text(log.notes)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("実施者:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text(log.performedBy)
-                                    .font(.footnote)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    
-                    // ケアタイプに応じたアイコンを返す
-                    private func iconForCareType(_ type: String) -> String {
-                        switch type {
-                        case Constants.CareTypes.walk:
-                            return "figure.walk"
-                        case Constants.CareTypes.feeding:
-                            return "cup.and.saucer.fill"
-                        case Constants.CareTypes.grooming:
-                            return "scissors"
-                        case Constants.CareTypes.medication:
-                            return "pills.fill"
-                        case Constants.CareTypes.healthCheck:
-                            return "stethoscope"
-                        default:
-                            return "heart.fill"
-                        }
-                    }
-                }
-
-                // 日付選択ビュー
-                struct DatePickerView: View {
-                    @Binding var selectedDate: Date
-                    let onSelect: (Date) -> Void
-                    @Environment(\.dismiss) private var dismiss
-                    @State private var internalDate: Date
-                    
-                    init(selectedDate: Binding<Date>, onSelect: @escaping (Date) -> Void) {
-                        self._selectedDate = selectedDate
-                        self.onSelect = onSelect
-                        self._internalDate = State(initialValue: selectedDate.wrappedValue)
-                    }
-                    
-                    var body: some View {
-                        NavigationView {
-                            VStack {
-                                DatePicker("日付を選択", selection: $internalDate, displayedComponents: .date)
-                                    .datePickerStyle(GraphicalDatePickerStyle())
-                                    .padding()
-                            }
-                            .navigationTitle("日付選択")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("キャンセル") {
-                                        dismiss()
+                                                                    Label("削除", systemImage: "trash")
+                                                                }
+                                                            }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // ペット未選択時のビュー
+                                    private var noPetSelectedView: some View {
+                                        VStack(spacing: 24) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(
+                                                        LinearGradient(
+                                                            gradient: Gradient(colors: [Color.secondaryApp.opacity(0.2), Color.secondaryApp.opacity(0.1)]),
+                                                            startPoint: .topLeading,
+                                                            endPoint: .bottomTrailing
+                                                        )
+                                                    )
+                                                    .frame(width: 120, height: 120)
+                                                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
+                                                
+                                                Image(systemName: "pawprint.circle")
+                                                    .font(.system(size: 60))
+                                                    .foregroundColor(Color.secondaryApp)
+                                            }
+                                            
+                                            Text("ペットが選択されていません")
+                                                .font(.title2)
+                                                .fontWeight(.semibold)
+                                                .multilineTextAlignment(.center)
+                                            
+                                            Text("「ペット」タブでペットを選択してください")
+                                                .font(.body)
+                                                .foregroundColor(.secondary)
+                                                .multilineTextAlignment(.center)
+                                                .padding(.horizontal, 32)
+                                            
+                                            if !petViewModel.pets.isEmpty {
+                                                Button(action: {
+                                                    petViewModel.selectPet(id: petViewModel.pets[0].id)
+                                                }) {
+                                                    Text("最初のペットを選択")
+                                                        .font(.headline)
+                                                        .padding(.horizontal, 32)
+                                                        .padding(.vertical, 14)
+                                                        .background(
+                                                            LinearGradient(
+                                                                gradient: Gradient(colors: [Color.primaryApp, Color.primaryApp.opacity(0.8)]),
+                                                                startPoint: .leading,
+                                                                endPoint: .trailing
+                                                            )
+                                                        )
+                                                        .foregroundColor(.white)
+                                                        .cornerRadius(Constants.Layout.cornerRadius)
+                                                        .shadow(color: Color.primaryApp.opacity(0.3), radius: 4, x: 0, y: 3)
+                                                }
+                                            }
+                                        }
+                                        .padding()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .background(Color.backgroundPrimary)
+                                    }
+                                    
+                                    // ケアタイプに応じたアイコンを返す
+                                    private func careTypeIcon(for type: String) -> String {
+                                        switch type {
+                                        case Constants.CareTypes.walk:
+                                            return "figure.walk"
+                                        case Constants.CareTypes.feeding:
+                                            return "cup.and.saucer.fill"
+                                        case Constants.CareTypes.grooming:
+                                            return "scissors"
+                                        case Constants.CareTypes.medication:
+                                            return "pills.fill"
+                                        case Constants.CareTypes.healthCheck:
+                                            return "stethoscope"
+                                        default:
+                                            return "heart.fill"
+                                        }
+                                    }
+                                    
+                                    // 選択日付のログを取得
+                                    private func fetchLogsForSelectedDate(petId: UUID) {
+                                        let startOfDay = calendar.startOfDay(for: selectedDate)
+                                        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
+                                        
+                                        let context = PersistenceController.shared.container.viewContext
+                                        let request = NSFetchRequest<CareLog>(entityName: "CareLog")
+                                        request.predicate = NSPredicate(format: "pet.id == %@ AND timestamp >= %@ AND timestamp <= %@",
+                                                                         petId as CVarArg, startOfDay as CVarArg, endOfDay as CVarArg)
+                                        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+                                        
+                                        do {
+                                            let fetchedLogs = try context.fetch(request)
+                                            careViewModel.careLogs = fetchedLogs.map { CareLogModel(entity: $0) }
+                                        } catch {
+                                            print("Error fetching care logs for date: \(error)")
+                                            careViewModel.careLogs = []
+                                        }
                                     }
                                 }
-                                
-                                ToolbarItem(placement: .navigationBarTrailing) {
-                                    Button("決定") {
-                                        onSelect(internalDate)
+
+                                // 各ケア記録アイテムのビュー
+                                struct CareLogItemView: View {
+                                    let log: CareLogModel
+                                    
+                                    var body: some View {
+                                        HStack(spacing: 16) {
+                                            // ケアタイプアイコン
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color.forCareType(log.type).opacity(0.2))
+                                                    .frame(width: 40, height: 40)
+                                                
+                                                Image(systemName: iconForCareType(log.type))
+                                                    .foregroundColor(Color.forCareType(log.type))
+                                            }
+                                            
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(log.type)
+                                                    .font(.headline)
+                                                
+                                                Text(log.timestamp.formattedTime)
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.secondary)
+                                                
+                                                if !log.notes.isEmpty {
+                                                    Text(log.notes)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                        .lineLimit(2)
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            VStack(alignment: .trailing, spacing: 4) {
+                                                Text("実施者:")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                
+                                                Text(log.performedBy)
+                                                    .font(.footnote)
+                                            }
+                                        }
+                                        .padding(.vertical, 8)
+                                    }
+                                    
+                                    // ケアタイプに応じたアイコンを返す
+                                    private func iconForCareType(_ type: String) -> String {
+                                        switch type {
+                                        case Constants.CareTypes.walk:
+                                            return "figure.walk"
+                                        case Constants.CareTypes.feeding:
+                                            return "cup.and.saucer.fill"
+                                        case Constants.CareTypes.grooming:
+                                            return "scissors"
+                                        case Constants.CareTypes.medication:
+                                            return "pills.fill"
+                                        case Constants.CareTypes.healthCheck:
+                                            return "stethoscope"
+                                        default:
+                                            return "heart.fill"
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
+
+                                // 日付選択ビュー
+                                struct DatePickerView: View {
+                                    @Binding var selectedDate: Date
+                                    let onSelect: (Date) -> Void
+                                    @Environment(\.dismiss) private var dismiss
+                                    @State private var internalDate: Date
+                                    
+                                    init(selectedDate: Binding<Date>, onSelect: @escaping (Date) -> Void) {
+                                        self._selectedDate = selectedDate
+                                        self.onSelect = onSelect
+                                        self._internalDate = State(initialValue: selectedDate.wrappedValue)
+                                    }
+                                    
+                                    var body: some View {
+                                        NavigationView {
+                                            VStack {
+                                                DatePicker("日付を選択", selection: $internalDate, displayedComponents: .date)
+                                                    .datePickerStyle(GraphicalDatePickerStyle())
+                                                    .padding()
+                                            }
+                                            .navigationTitle("日付選択")
+                                            .navigationBarTitleDisplayMode(.inline)
+                                            .toolbar {
+                                                ToolbarItem(placement: .navigationBarLeading) {
+                                                    Button("キャンセル") {
+                                                        dismiss()
+                                                    }
+                                                }
+                                                
+                                                ToolbarItem(placement: .navigationBarTrailing) {
+                                                    Button("決定") {
+                                                        onSelect(internalDate)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }

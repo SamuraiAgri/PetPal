@@ -70,7 +70,7 @@ struct HealthLogView: View {
                     VaccinationEntryView(pet: pet, healthViewModel: healthViewModel)
                 }
             }
-            .onChange(of: petViewModel.selectedPet) { oldValue, newValue in
+            .onChange(of: petViewModel.selectedPet) { _, newValue in
                 if let petId = newValue?.id {
                     loadHealthData(for: petId)
                 }
@@ -308,9 +308,8 @@ struct HealthLogView: View {
                     )
                 }
                 .padding(.horizontal)
+                .padding(.bottom, 12)
             }
-            
-            .padding(.bottom, 12)
         }
         .background(
             LinearGradient(
