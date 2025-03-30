@@ -9,8 +9,27 @@ struct PersistenceController {
     static let preview: PersistenceController = {
         let result = PersistenceController(inMemory: true)
         let viewContext = result.container.viewContext
+        
         // プレビューデータの作成
-        // 省略（PetPalApp.swiftで定義済み）
+        let samplePet = Pet(context: viewContext)
+        samplePet.id = UUID()
+        samplePet.name = "ポチ"
+        samplePet.species = "犬"
+        samplePet.breed = "柴犬"
+        samplePet.birthDate = Calendar.current.date(byAdding: .year, value: -2, to: Date())!
+        samplePet.gender = "オス"
+        samplePet.notes = "元気いっぱいの柴犬です"
+        samplePet.createdAt = Date()
+        samplePet.updatedAt = Date()
+        samplePet.isActive = true
+        
+        do {
+            try viewContext.save()
+        } catch {
+            let nsError = error as NSError
+            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+        }
+        
         return result
     }()
 
@@ -18,14 +37,32 @@ struct PersistenceController {
 
     init(inMemory: Bool = false) {
         container = NSPersistentCloudKitContainer(name: "PetPal")
+        
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
+        
+        // CloudKit同期の設定
+        guard let description = container.persistentStoreDescriptions.first else {
+            fatalError("Failed to retrieve a persistent store description.")
+        }
+        
+        description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
+            containerIdentifier: Constants.CloudKit.containerIdentifier
+        )
+        
+        // 自動マージポリシーの設定
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        
+        container.loadPersistentStores { (_, error) in
             if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                // CloudKit同期に失敗してもローカルでは動作するように、エラーはログだけ残す
+                print("Persistent store loading error: \(error), \(error.userInfo)")
             }
-        })
+        }
+        
         container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
     }
 }

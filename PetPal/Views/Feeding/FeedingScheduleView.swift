@@ -281,7 +281,6 @@ struct FeedingScheduleView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // 選択日付のログを取得
     private func fetchLogsForSelectedDate(petId: UUID) {
         let startOfDay = calendar.startOfDay(for: selectedDate)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
