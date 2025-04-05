@@ -192,10 +192,7 @@ class CloudKitManager {
                         print("Error fetching shared user profiles: \(fetchErrors.first!)")
                     } else {
                         // 重複を避けて統合
-                        var allProfiles: [UserProfileModel] = [] // 修正: 新しい変数を作成
-                        if let profiles = try? completion(.success([])) as? [UserProfileModel] {
-                            allProfiles = profiles
-                        }
+                        var allProfiles: [UserProfileModel] = [] // 新しい変数を作成
                         
                         for sharedProfile in sharedUserProfiles {
                             if !allProfiles.contains(where: { $0.id == sharedProfile.id }) {
@@ -564,14 +561,13 @@ class CloudKitManager {
         
         // 共有情報の設定
         if let share = record.share {
-            // CKShare からの url と title の取得 - 修正
+            // CKShare から url と title を取得する
             var shareURL: URL? = nil
             if let shareURLString = share["url"] as? String {
                 shareURL = URL(string: shareURLString)
             }
             petModel.shareURL = shareURL
             
-            // share から title を取得 - 修正
             if let title = share[CKShare.SystemFieldKey.title] as? String {
                 petModel.shareTitle = title
             }
@@ -666,7 +662,7 @@ class CloudKitManager {
     
     // レコードの共有参加者を取得
     func fetchShareParticipants(for record: CKRecord, completion: @escaping (Result<[String], Error>) -> Void) {
-        guard record.share != nil else {
+        guard let _ = record.share else {
             completion(.success([]))
             return
         }
@@ -748,83 +744,70 @@ class CloudKitManager {
         privateDatabase.save(record) { (record: CKRecord?, error: Error?) in
             if let error = error {
                 completion(.failure(error))
-                           } else if let record = record {
-                                           completion(.success(record.recordID))
-                                       } else {
-                                           completion(.failure(NSError(domain: "CloudKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "ケアログの保存に失敗しました"])))
-                                       }
-                                   }
-                               }
-                               
-                               // MARK: - ユーザーフレンドリーな共有UI
-                               
-                               // UICloudSharingControllerを使用した共有UI表示
-                               func presentSharingUI(for pet: PetModel, from viewController: UIViewController, completion: @escaping (Result<Void, Error>) -> Void) {
-                                   // 対象のレコードを取得
-                                   let recordID = CKRecord.ID(recordName: pet.id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
-                                   
-                                   privateDatabase.fetch(withRecordID: recordID) { record, error in
-                                       if let error = error {
-                                           completion(.failure(error))
-                                           return
-                                       }
-                                       
-                                       guard let record = record else {
-                                           completion(.failure(NSError(domain: "CloudKitManager", code: 9, userInfo: [NSLocalizedDescriptionKey: "ペットレコードが見つかりませんでした"])))
-                                           return
-                                       }
-                                       
-                                       // 既存の共有を使用するか、新しい共有を作成
-                                       let share: CKShare
-                                       if let existingShare = record.share {
-                                           share = existingShare
-                                       } else {
-                                           share = CKShare(rootRecord: record)
-                                           share[CKShare.SystemFieldKey.title] = "\(pet.name)のケア共有" as CKRecordValue
-                                       }
-                                       
-                                       // 共有UIコントローラーを設定
-                                       let sharingController = UICloudSharingController(share: share, container: self.container)
-                                       sharingController.delegate = viewController as? UICloudSharingControllerDelegate
-                                       sharingController.availablePermissions = [.allowPrivate, .allowReadWrite, .allowReadOnly]
-                                       
-                                       // UIを表示
-                                       DispatchQueue.main.async {
-                                           viewController.present(sharingController, animated: true) {
-                                               completion(.success(()))
-                                           }
-                                       }
-                                   }
-                               }
-                               
-                               // ケアスケジュール保存
-                               func saveCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-                                   let record = schedule.toCloudKitRecord()
-                                   
-                                   privateDatabase.save(record) { (record: CKRecord?, error: Error?) in
-                                       if let error = error {
-                                           completion(.failure(error))
-                                       } else if let record = record {
-                                           completion(.success(record.recordID))
-                                       } else {
-                                           completion(.failure(NSError(domain: "CloudKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "スケジュールの保存に失敗しました"])))
-                                       }
-                                   }
-                               }
-                               
-                               // ケアスケジュール更新
-                               func updateCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-                                   // 基本的にsaveCareScheduleと同じ処理だが、将来的な拡張性のために別メソッドとして定義
-                                   let record = schedule.toCloudKitRecord()
-                                   
-                                   privateDatabase.save(record) { (record: CKRecord?, error: Error?) in
-                                       if let error = error {
-                                           completion(.failure(error))
-                                       } else if let record = record {
-                                           completion(.success(record.recordID))
-                                       } else {
-                                           completion(.failure(NSError(domain: "CloudKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "スケジュールの更新に失敗しました"])))
-                                       }
-                                   }
-                               }
-                           }
+            } else if let record = record {
+                completion(.success(record.recordID))
+            } else {
+                completion(.failure(NSError(domain: "CloudKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "ケアログの保存に失敗しました"])))
+                            }
+                        }
+                    }
+                    
+                    // MARK: - ユーザーフレンドリーな共有UI
+                    
+                    // UICloudSharingControllerを使用した共有UI表示
+                    func presentSharingUI(for pet: PetModel, from viewController: UIViewController, completion: @escaping (Result<Void, Error>) -> Void) {
+                        // 対象のレコードを取得
+                        let recordID = CKRecord.ID(recordName: pet.id.uuidString, zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
+                        
+                        privateDatabase.fetch(withRecordID: recordID) { record, error in
+                            if let error = error {
+                                completion(.failure(error))
+                                return
+                            }
+                            
+                            guard let record = record else {
+                                completion(.failure(NSError(domain: "CloudKitManager", code: 9, userInfo: [NSLocalizedDescriptionKey: "ペットレコードが見つかりませんでした"])))
+                                return
+                            }
+                            
+                            // 既存の共有を使用するか、新しい共有を作成
+                            let share: CKShare
+                            if let existingShare = record.share {
+                                share = existingShare
+                            } else {
+                                share = CKShare(rootRecord: record)
+                                share[CKShare.SystemFieldKey.title] = "\(pet.name)のケア共有" as CKRecordValue
+                            }
+                            
+                            // 共有UIコントローラーを設定
+                            let sharingController = UICloudSharingController(share: share, container: self.container)
+                            sharingController.delegate = viewController as? UICloudSharingControllerDelegate
+                            sharingController.availablePermissions = [.allowPrivate, .allowReadWrite, .allowReadOnly]
+                            
+                            // UIを表示
+                            DispatchQueue.main.async {
+                                viewController.present(sharingController, animated: true) {
+                                    completion(.success(()))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // CareViewModel用の拡張 - ケアスケジュール関連の操作を実装
+                extension CloudKitManager {
+                    // ケアスケジュール保存
+                    func saveCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
+                        let record = schedule.toCloudKitRecord()
+                        
+                        privateDatabase.save(record) { (record: CKRecord?, error: Error?) in
+                            if let error = error {
+                                completion(.failure(error))
+                            } else if let record = record {
+                                completion(.success(record.recordID))
+                            } else {
+                                completion(.failure(NSError(domain: "CloudKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "スケジュールの保存に失敗しました"])))
+                            }
+                        }
+                    }
+                }
