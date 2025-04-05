@@ -447,6 +447,9 @@ struct CareLogView: View {
                     if let userProfileID = careViewModel.careSchedules[i].assignedUserProfileID {
                         careViewModel.careSchedules[i].assignedUserProfile = userProfileViewModel.userProfiles.first(where: { $0.id == userProfileID })
                     }
+                    if let createdByID = careViewModel.careSchedules[i].createdBy {
+                        careViewModel.careSchedules[i].createdByProfile = userProfileViewModel.userProfiles.first(where: { $0.id == createdByID })
+                    }
                 }
             } catch {
                 print("Error fetching care schedules for date: \(error)")

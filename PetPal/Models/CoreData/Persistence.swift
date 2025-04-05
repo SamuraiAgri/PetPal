@@ -76,7 +76,11 @@ struct PersistenceController {
         ]
         
         description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-        description.setOptions(options as [AnyHashable : Any])
+        
+        // setOptionsメソッドの代わりにオプションを直接設定
+        for (key, value) in options {
+            description.setOption(value as NSObject, forKey: key)
+        }
         
         // CloudKit同期の設定
         description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(

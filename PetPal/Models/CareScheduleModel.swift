@@ -2,6 +2,7 @@
 import Foundation
 import CoreData
 import CloudKit
+import SwiftUI
 
 struct CareScheduleModel: Identifiable {
     var id: UUID

@@ -2,6 +2,7 @@
 import Foundation
 import CoreData
 import CloudKit
+import UIKit
 
 struct UserProfileModel: Identifiable, Equatable {
     var id: UUID
