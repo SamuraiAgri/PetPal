@@ -18,7 +18,6 @@ class CloudKitManager {
     }
     
     // MARK: - カスタムゾーンの作成
-    
     private func createCustomZoneIfNeeded() {
         let petZoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         let petZone = CKRecordZone(zoneID: petZoneID)
@@ -29,7 +28,6 @@ class CloudKitManager {
         let operation = CKModifyRecordZonesOperation(recordZonesToSave: [petZone, userZone], recordZoneIDsToDelete: nil)
         operation.qualityOfService = .userInitiated
         
-        // 明示的な型注釈を追加
         operation.modifyRecordZonesResultBlock = { (result: Result<Void, Error>) -> Void in
             switch result {
             case .success:
@@ -43,7 +41,6 @@ class CloudKitManager {
     }
     
     // MARK: - 現在のユーザー情報関連
-    
     func fetchCurrentUserID(completion: @escaping (Result<String, Error>) -> Void) {
         container.fetchUserRecordID { (recordID: CKRecord.ID?, error: Error?) -> Void in
             if let error = error {
@@ -58,7 +55,6 @@ class CloudKitManager {
     }
     
     // MARK: - ユーザープロファイル関連操作
-    
     func saveUserProfile(_ profile: UserProfileModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
         let record = profile.toCloudKitRecord()
         privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
@@ -82,7 +78,6 @@ class CloudKitManager {
         queryOperation.zoneID = zoneID
         
         var records: [CKRecord] = []
-        
         queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
             switch result {
             case .success(let record):
@@ -91,7 +86,6 @@ class CloudKitManager {
                 print("Error fetching record: \(error)")
             }
         }
-        
         queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) -> Void in
             guard let self = self else { return }
             switch result {
@@ -130,7 +124,6 @@ class CloudKitManager {
                 }
             }
         }
-        
         privateDatabase.add(queryOperation)
         
         // 共有データベースからも取得
@@ -225,7 +218,6 @@ class CloudKitManager {
     }
     
     // MARK: - Pet関連操作
-    
     func savePet(_ pet: PetModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
         let record = pet.toCloudKitRecord()
         privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
@@ -248,7 +240,6 @@ class CloudKitManager {
         queryOperation.zoneID = zoneID
         
         var records: [CKRecord] = []
-        
         queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
             switch result {
             case .success(let record):
@@ -284,7 +275,6 @@ class CloudKitManager {
         let queryOperation = CKQueryOperation(query: query)
         
         var records: [CKRecord] = []
-        
         queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
             switch result {
             case .success(let record):
@@ -322,7 +312,6 @@ class CloudKitManager {
         queryOperation.zoneID = zoneID
         
         var allRecords: [CKRecord] = []
-        
         queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
             switch result {
             case .success(let record):
@@ -385,7 +374,6 @@ class CloudKitManager {
         let group = DispatchGroup()
         var petModels: [PetModel] = []
         var fetchErrors: [Error] = []
-        
         for record in records {
             group.enter()
             self.petModelFromRecord(record) { (result: Result<PetModel?, Error>) in
@@ -400,7 +388,6 @@ class CloudKitManager {
                 group.leave()
             }
         }
-        
         group.notify(queue: .main) {
             if !fetchErrors.isEmpty {
                 completion(.failure(fetchErrors.first!))
@@ -416,7 +403,6 @@ class CloudKitManager {
         let queryOperation = CKQueryOperation(query: query)
         
         var records: [CKRecord] = []
-        
         queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
             switch result {
             case .success(let record):
@@ -425,7 +411,6 @@ class CloudKitManager {
                 print("Error fetching shared record: \(error)")
             }
         }
-        
         queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) -> Void in
             guard let self = self else { return }
             switch result {
@@ -435,7 +420,6 @@ class CloudKitManager {
                 completion(.failure(error))
             }
         }
-        
         sharedDatabase.add(queryOperation)
     }
     
@@ -513,7 +497,6 @@ class CloudKitManager {
     }
     
     // MARK: - 共有関連
-    
     func sharePet(_ pet: PetModel, completion: @escaping (Result<URL, Error>) -> Void) {
         let recordID = CKRecord.ID(recordName: pet.id.uuidString,
                                    zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
@@ -531,9 +514,8 @@ class CloudKitManager {
             let share = CKShare(rootRecord: record)
             share[CKShare.SystemFieldKey.title] = "\(pet.name)のケア共有" as CKRecordValue
             let modifyOperation = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
-            // 修正: perRecordProgressBlock の第一引数を CKRecord に変更
             modifyOperation.perRecordProgressBlock = { (_ record: CKRecord, progress: Double) -> Void in }
-            modifyOperation.perRecordCompletionBlock = { (_ recordID: CKRecord.ID, _ record: CKRecord?, _ error: Error?) -> Void in }
+            // perRecordCompletionBlock は非推奨のため削除
             modifyOperation.modifyRecordsResultBlock = { (result: Result<Void, Error>) -> Void in
                 switch result {
                 case .success:
@@ -670,7 +652,6 @@ class CloudKitManager {
     }
     
     // MARK: - ケアログ関連操作
-    
     func saveCareLog(_ careLog: CareLogModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
         let record = careLog.toCloudKitRecord()
         privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
@@ -686,7 +667,6 @@ class CloudKitManager {
     }
     
     // MARK: - ユーザーフレンドリーな共有UI
-    
     func presentSharingUI(for pet: PetModel, from viewController: UIViewController, completion: @escaping (Result<Void, Error>) -> Void) {
         let recordID = CKRecord.ID(recordName: pet.id.uuidString,
                                    zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
@@ -736,7 +716,7 @@ class CloudKitManager {
 }
 
 // MARK: - CareViewModel 用の拡張
-// saveCareSchedule は重複定義とならないよう、こちらのみ定義します
+// saveCareSchedule はここにのみ定義（重複定義を防止）
 extension CloudKitManager {
     func saveCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
         let record = schedule.toCloudKitRecord()

@@ -1,4 +1,3 @@
-// PetPal/Models/UserProfileModel.swift
 import Foundation
 import CoreData
 import CloudKit
@@ -101,7 +100,6 @@ struct UserProfileModel: Identifiable, Equatable {
             return fileURL
         } catch {
             print("Error saving avatar image temporarily: \(error)")
-            // エラー時は空のファイルを作成して返す
             FileManager.default.createFile(atPath: fileURL.path, contents: nil)
             return fileURL
         }
@@ -151,6 +149,6 @@ extension UIColor {
         let g = Float(components[1])
         let b = Float(components[2])
         
-        return String(format: "#%02lX%02lX%02lX", lround(r * 255), lround(g * 255), lround(b * 255))
+        return String(format: "#%02lX%02lX%02lX", lround(Double(r) * 255), lround(Double(g) * 255), lround(Double(b) * 255))
     }
 }

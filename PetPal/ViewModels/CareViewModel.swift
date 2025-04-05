@@ -1,4 +1,3 @@
-// PetPal/ViewModels/CareViewModel.swift
 import Foundation
 import CoreData
 import SwiftUI
@@ -23,7 +22,7 @@ class CareViewModel: ObservableObject {
         self.userProfileViewModel = userProfileViewModel
     }
     
-    // 特定ペットのケア記録を取得
+    // MARK: - 特定ペットのケア記録の取得
     func fetchCareLogs(for petId: UUID) {
         isLoading = true
         
@@ -54,7 +53,7 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // 特定ペットのケアスケジュールを取得
+    // MARK: - 特定ペットのケアスケジュールの取得
     func fetchCareSchedules(for petId: UUID) {
         isLoading = true
         
@@ -68,8 +67,8 @@ class CareViewModel: ObservableObject {
             
             // ユーザープロファイル情報を追加
             for i in 0..<schedules.count {
-                if let userProfileID = schedules[i].assignedUserProfileID {
-                    schedules[i].assignedUserProfile = userProfileViewModel.userProfiles.first(where: { $0.id == userProfileID })
+                if let assignedUserProfileID = schedules[i].assignedUserProfileID {
+                    schedules[i].assignedUserProfile = userProfileViewModel.userProfiles.first(where: { $0.id == assignedUserProfileID })
                 }
                 if let createdByID = schedules[i].createdBy {
                     schedules[i].createdByProfile = userProfileViewModel.userProfiles.first(where: { $0.id == createdByID })
@@ -85,27 +84,23 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // ケア記録を追加
+    // MARK: - ケア記録の追加
     func addCareLog(petId: UUID, type: String, notes: String, performedBy: String = "") {
         isLoading = true
         
-        // ペットエンティティを取得
         let petRequest: NSFetchRequest<Pet> = Pet.fetchRequest()
         petRequest.predicate = NSPredicate(format: "id == %@", petId as CVarArg)
         
         do {
             let pets = try context.fetch(petRequest)
-            
             guard let pet = pets.first else {
                 errorMessage = "ペットが見つかりませんでした"
                 isLoading = false
                 return
             }
             
-            // 現在のユーザープロファイルを使用
             let currentUserID = userProfileViewModel.currentUser?.id
             
-            // 新規ケア記録作成
             let careLog = CareLog(context: context)
             careLog.id = UUID()
             careLog.type = type
@@ -119,7 +114,6 @@ class CareViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit 同期
             let careLogModel = CareLogModel(entity: careLog)
             cloudKitManager.saveCareLog(careLogModel) { result in
                 DispatchQueue.main.async {
@@ -128,7 +122,6 @@ class CareViewModel: ObservableObject {
                         let recordIDString = "\(Constants.CloudKit.careZoneName):\(recordID.recordName)"
                         careLog.cloudKitRecordID = recordIDString
                         try? self.context.save()
-                        
                     case .failure(let error):
                         print("CloudKit sync error for care log: \(error)")
                     }
@@ -144,27 +137,30 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // スケジュールからケア記録を追加（スケジュール完了時）
+    // MARK: - スケジュール完了処理（スケジュールからケア記録を追加）
     func completeCareSchedule(schedule: CareScheduleModel) {
         isLoading = true
         
-        // ペットエンティティを取得
+        // petId をアンラップ
+        guard let petId = schedule.petId else {
+            errorMessage = "ペットIDがありません"
+            isLoading = false
+            return
+        }
+        
         let petRequest: NSFetchRequest<Pet> = Pet.fetchRequest()
-        petRequest.predicate = NSPredicate(format: "id == %@", schedule.petId as CVarArg ?? "")
+        petRequest.predicate = NSPredicate(format: "id == %@", petId as CVarArg)
         
         do {
             let pets = try context.fetch(petRequest)
-            
             guard let pet = pets.first else {
                 errorMessage = "ペットが見つかりませんでした"
                 isLoading = false
                 return
             }
             
-            // 現在のユーザープロファイルを使用
             let currentUserID = userProfileViewModel.currentUser?.id
             
-            // スケジュールを完了に更新
             let scheduleRequest: NSFetchRequest<CareSchedule> = CareSchedule.fetchRequest()
             scheduleRequest.predicate = NSPredicate(format: "id == %@", schedule.id as CVarArg)
             
@@ -174,7 +170,6 @@ class CareViewModel: ObservableObject {
                 careSchedule.completedDate = Date()
                 careSchedule.updatedAt = Date()
                 
-                // 新規ケア記録作成（完了履歴として）
                 let careLog = CareLog(context: context)
                 careLog.id = UUID()
                 careLog.type = schedule.type
@@ -189,12 +184,11 @@ class CareViewModel: ObservableObject {
                 
                 try context.save()
                 
-                // CloudKit 同期（スケジュールの更新）
                 var updatedSchedule = schedule
                 updatedSchedule.markAsCompleted(byUserID: currentUserID ?? UUID())
                 
-                cloudKitManager.updateCareSchedule(updatedSchedule) { _ in
-                    // ログも同期
+                // updateCareSchedule が未実装の場合は saveCareSchedule を呼び出す
+                cloudKitManager.saveCareSchedule(updatedSchedule) { _ in
                     let careLogModel = CareLogModel(entity: careLog)
                     self.cloudKitManager.saveCareLog(careLogModel) { _ in
                         DispatchQueue.main.async {
@@ -215,27 +209,23 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // ケアスケジュールを追加
+    // MARK: - ケアスケジュールの追加
     func addCareSchedule(petId: UUID, type: String, scheduledDate: Date, assignedUserProfileID: UUID? = nil, notes: String = "") {
         isLoading = true
         
-        // ペットエンティティを取得
         let petRequest: NSFetchRequest<Pet> = Pet.fetchRequest()
         petRequest.predicate = NSPredicate(format: "id == %@", petId as CVarArg)
         
         do {
             let pets = try context.fetch(petRequest)
-            
             guard let pet = pets.first else {
                 errorMessage = "ペットが見つかりませんでした"
                 isLoading = false
                 return
             }
             
-            // 現在のユーザープロファイルを使用
             let currentUserID = userProfileViewModel.currentUser?.id
             
-            // 新規ケアスケジュール作成
             let careSchedule = CareSchedule(context: context)
             careSchedule.id = UUID()
             careSchedule.type = type
@@ -250,7 +240,6 @@ class CareViewModel: ObservableObject {
             
             try context.save()
             
-            // CloudKit 同期
             let scheduleModel = CareScheduleModel(entity: careSchedule)
             cloudKitManager.saveCareSchedule(scheduleModel) { result in
                 DispatchQueue.main.async {
@@ -259,7 +248,6 @@ class CareViewModel: ObservableObject {
                         let recordIDString = "\(Constants.CloudKit.careZoneName):\(recordID.recordName)"
                         careSchedule.cloudKitRecordID = recordIDString
                         try? self.context.save()
-                        
                     case .failure(let error):
                         print("CloudKit sync error for care schedule: \(error)")
                     }
@@ -269,7 +257,6 @@ class CareViewModel: ObservableObject {
                 }
             }
             
-            // 関連するユーザーに通知
             if let assignedUserID = assignedUserProfileID, assignedUserID != currentUserID {
                 self.notifyUserAboutSchedule(petID: petId, userID: assignedUserID, scheduledDate: scheduledDate, type: type)
             }
@@ -280,20 +267,17 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // ケア記録を削除
+    // MARK: - ケア記録の削除
     func deleteCareLog(id: UUID) {
         let request: NSFetchRequest<CareLog> = CareLog.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         
         do {
             let results = try context.fetch(request)
-            
             if let logToDelete = results.first {
                 let petId = logToDelete.pet?.id
-                
                 context.delete(logToDelete)
                 try context.save()
-                
                 if let petId = petId {
                     fetchCareLogs(for: petId)
                 }
@@ -304,20 +288,17 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // ケアスケジュールを削除
+    // MARK: - ケアスケジュールの削除
     func deleteCareSchedule(id: UUID) {
         let request: NSFetchRequest<CareSchedule> = CareSchedule.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         
         do {
             let results = try context.fetch(request)
-            
             if let scheduleToDelete = results.first {
                 let petId = scheduleToDelete.pet?.id
-                
                 context.delete(scheduleToDelete)
                 try context.save()
-                
                 if let petId = petId {
                     fetchCareSchedules(for: petId)
                 }
@@ -328,7 +309,7 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // 複数タイプのケア記録をまとめて追加（一括登録用）
+    // MARK: - 複数タイプのケア記録をまとめて追加（一括登録用）
     func addMultipleCare(petId: UUID, types: [String], notes: String, performedBy: String = "") {
         isLoading = true
         
@@ -337,14 +318,12 @@ class CareViewModel: ObservableObject {
         
         do {
             let pets = try context.fetch(petRequest)
-            
             guard let pet = pets.first else {
                 errorMessage = "ペットが見つかりませんでした"
                 isLoading = false
                 return
             }
             
-            // 現在のユーザープロファイルを使用
             let currentUserID = userProfileViewModel.currentUser?.id
             let currentUserName = userProfileViewModel.currentUser?.name ?? UIDevice.current.name
             
@@ -362,9 +341,6 @@ class CareViewModel: ObservableObject {
             }
             
             try context.save()
-            
-            // CloudKit同期は個別に実行する代わりに、バッチ処理を実装すると効率的
-            
             fetchCareLogs(for: petId)
             isLoading = false
         } catch {
@@ -374,7 +350,7 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // 期間指定でケア記録を取得（統計用）
+    // MARK: - 期間指定でケア記録を取得（統計用）
     func fetchCareLogsForPeriod(petId: UUID, from: Date, to: Date) -> [CareLogModel] {
         let request: NSFetchRequest<CareLog> = CareLog.fetchRequest()
         request.predicate = NSPredicate(format: "pet.id == %@ AND timestamp >= %@ AND timestamp <= %@ AND isScheduled == %@",
@@ -384,14 +360,11 @@ class CareViewModel: ObservableObject {
         do {
             let fetchedLogs = try context.fetch(request)
             var logs = fetchedLogs.map { CareLogModel(entity: $0) }
-            
-            // ユーザープロファイル情報を追加
             for i in 0..<logs.count {
                 if let userProfileID = logs[i].userProfileID {
                     logs[i].userProfile = userProfileViewModel.userProfiles.first(where: { $0.id == userProfileID })
                 }
             }
-            
             return logs
         } catch {
             print("Error fetching care logs for period: \(error)")
@@ -399,7 +372,7 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // 今日のケアスケジュールを取得
+    // MARK: - 今日のケアスケジュールを取得
     func fetchTodaySchedules(petId: UUID) -> [CareScheduleModel] {
         let now = Date()
         let startOfDay = Calendar.current.startOfDay(for: now)
@@ -413,14 +386,11 @@ class CareViewModel: ObservableObject {
         do {
             let fetchedSchedules = try context.fetch(request)
             var schedules = fetchedSchedules.map { CareScheduleModel(entity: $0) }
-            
-            // ユーザープロファイル情報を追加
             for i in 0..<schedules.count {
                 if let userProfileID = schedules[i].assignedUserProfileID {
                     schedules[i].assignedUserProfile = userProfileViewModel.userProfiles.first(where: { $0.id == userProfileID })
                 }
             }
-            
             return schedules
         } catch {
             print("Error fetching today's schedules: \(error)")
@@ -428,24 +398,19 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // 特定ユーザーのケアスケジュールを取得
+    // MARK: - 特定ユーザーのケアスケジュールを取得
     func fetchUserSchedules(userProfileId: UUID, petId: UUID? = nil) -> [CareScheduleModel] {
         let request: NSFetchRequest<CareSchedule> = CareSchedule.fetchRequest()
-        
         var predicates = [NSPredicate(format: "assignedUserProfileID == %@ AND isCompleted == %@", userProfileId as CVarArg, false as NSNumber)]
-        
         if let petId = petId {
             predicates.append(NSPredicate(format: "pet.id == %@", petId as CVarArg))
         }
-        
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CareSchedule.scheduledDate, ascending: true)]
         
         do {
             let fetchedSchedules = try context.fetch(request)
             var schedules = fetchedSchedules.map { CareScheduleModel(entity: $0) }
-            
-            // ユーザープロファイル情報を追加
             for i in 0..<schedules.count {
                 if let userProfileID = schedules[i].assignedUserProfileID {
                     schedules[i].assignedUserProfile = userProfileViewModel.userProfiles.first(where: { $0.id == userProfileID })
@@ -454,7 +419,6 @@ class CareViewModel: ObservableObject {
                     schedules[i].createdByProfile = userProfileViewModel.userProfiles.first(where: { $0.id == createdByID })
                 }
             }
-            
             return schedules
         } catch {
             print("Error fetching user schedules: \(error)")
@@ -462,29 +426,25 @@ class CareViewModel: ObservableObject {
         }
     }
     
-    // タイプ別のケア回数を取得（統計用）
+    // MARK: - タイプ別のケア回数を取得（統計用）
     func getCareCountsByType(petId: UUID, from: Date, to: Date) -> [String: Int] {
         let logs = fetchCareLogsForPeriod(petId: petId, from: from, to: to)
         var countsByType: [String: Int] = [:]
-        
         for log in logs {
             let type = log.type
             countsByType[type, default: 0] += 1
         }
-        
         return countsByType
     }
     
-    // ユーザー別のケア回数を取得（統計用）
+    // MARK: - ユーザー別のケア回数を取得（統計用）
     func getCareCountsByUser(petId: UUID, from: Date, to: Date) -> [(userID: UUID, name: String, count: Int, color: String)] {
         let logs = fetchCareLogsForPeriod(petId: petId, from: from, to: to)
         var countsByUser: [UUID: (name: String, count: Int, color: String)] = [:]
-        
         for log in logs {
             if let userID = log.userProfileID, let userProfile = log.userProfile {
                 let userName = userProfile.name
                 let userColor = userProfile.colorHex
-                
                 if let existingData = countsByUser[userID] {
                     countsByUser[userID] = (existingData.name, existingData.count + 1, existingData.color)
                 } else {
@@ -492,15 +452,13 @@ class CareViewModel: ObservableObject {
                 }
             }
         }
-        
         return countsByUser.map { (userID: $0.key, name: $0.value.name, count: $0.value.count, color: $0.value.color) }
             .sorted { $0.count > $1.count }
     }
     
-    // 担当ユーザーに通知
+    // MARK: - 担当ユーザーに通知
     private func notifyUserAboutSchedule(petID: UUID, userID: UUID, scheduledDate: Date, type: String) {
-        // ローカル通知の設定
-        if let userProfile = userProfileViewModel.userProfiles.first(where: { $0.id == userID }) {
+        if let _ = userProfileViewModel.userProfiles.first(where: { $0.id == userID }) {
             let petRequest: NSFetchRequest<Pet> = Pet.fetchRequest()
             petRequest.predicate = NSPredicate(format: "id == %@", petID as CVarArg)
             
@@ -508,7 +466,6 @@ class CareViewModel: ObservableObject {
                 if let pet = try context.fetch(petRequest).first {
                     let petName = pet.name ?? "ペット"
                     
-                    // 通知リクエストを作成
                     let content = UNMutableNotificationContent()
                     content.title = "\(type)の担当になりました"
                     content.body = "\(petName)の\(type)担当に設定されました。予定: \(scheduledDate.formattedDateTime)"
@@ -516,18 +473,15 @@ class CareViewModel: ObservableObject {
                     content.categoryIdentifier = Constants.Notification.careAssignmentCategory
                     content.userInfo = ["petId": petID.uuidString, "scheduleDate": scheduledDate]
                     
-                    // 通知のタイミング設定（即時と予定時刻の10分前）
-                    // 即時通知
                     let immediateRequest = UNNotificationRequest(
                         identifier: UUID().uuidString,
                         content: content,
-                        trigger: nil // 即時通知
+                        trigger: nil
                     )
                     
-                    // 予定時刻の通知（設定されてから30分以上先の場合）
                     let timeInterval = scheduledDate.timeIntervalSince(Date())
-                    if timeInterval > (30 * 60) { // 30分以上先なら
-                        let reminderDate = scheduledDate.addingTimeInterval(-1 * Double(Constants.CareSchedule.reminderTimeBeforeCare * 60))
+                    if timeInterval > (30 * 60) {
+                        let reminderDate = scheduledDate.addingTimeInterval(-Double(Constants.CareSchedule.reminderTimeBeforeCare * 60))
                         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
                         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
                         
@@ -554,29 +508,5 @@ class CareViewModel: ObservableObject {
                 print("ペット情報の取得に失敗: \(error)")
             }
         }
-    }
-}
-
-// CloudKitManagerの拡張（CareSchedule関連）
-extension CloudKitManager {
-    // ケアスケジュール保存
-    func saveCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        let record = schedule.toCloudKitRecord()
-        
-        privateDatabase.save(record) { (record: CKRecord?, error: Error?) in
-            if let error = error {
-                completion(.failure(error))
-            } else if let record = record {
-                completion(.success(record.recordID))
-            } else {
-                completion(.failure(NSError(domain: "CloudKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "スケジュールの保存に失敗しました"])))
-            }
-        }
-    }
-    
-    // ケアスケジュール更新
-    func updateCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        // 基本的にsaveCareScheduleと同じ処理だが、将来的な拡張性のために別メソッドとして定義
-        saveCareSchedule(schedule, completion: completion)
     }
 }
