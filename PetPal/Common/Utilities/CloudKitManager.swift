@@ -19,21 +19,38 @@ class CloudKitManager {
     
     // MARK: - カスタムゾーンの作成
     private func createCustomZoneIfNeeded() {
+        // ペットゾーン
         let petZoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName)
         let petZone = CKRecordZone(zoneID: petZoneID)
         
+        // ユーザーゾーン
         let userZoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.userZoneName, ownerName: CKCurrentUserDefaultName)
         let userZone = CKRecordZone(zoneID: userZoneID)
         
-        let operation = CKModifyRecordZonesOperation(recordZonesToSave: [petZone, userZone], recordZoneIDsToDelete: nil)
+        // ケアゾーン
+        let careZoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.careZoneName, ownerName: CKCurrentUserDefaultName)
+        let careZone = CKRecordZone(zoneID: careZoneID)
+        
+        // ゾーンの作成処理
+        let operation = CKModifyRecordZonesOperation(recordZonesToSave: [petZone, userZone, careZone], recordZoneIDsToDelete: nil)
         operation.qualityOfService = .userInitiated
         
         operation.modifyRecordZonesResultBlock = { (result: Result<Void, Error>) -> Void in
             switch result {
             case .success:
-                print("Custom zones created or already exist")
+                print("✅ カスタムゾーンの作成に成功しました")
             case .failure(let error):
-                print("Error creating custom zones: \(error)")
+                if let ckError = error as? CKError {
+                    if ckError.code == .zoneNotFound {
+                        print("❌ ゾーンが見つかりません: \(error.localizedDescription)")
+                    } else if ckError.code == .serverRejectedRequest {
+                        print("❌ サーバーがリクエストを拒否しました: \(error.localizedDescription)")
+                    } else {
+                        print("❌ ゾーンの作成エラー: \(error.localizedDescription)")
+                    }
+                } else {
+                    print("❌ ゾーンの作成エラー: \(error.localizedDescription)")
+                }
             }
         }
         
@@ -498,6 +515,7 @@ class CloudKitManager {
     
     // MARK: - 共有関連
     func sharePet(_ pet: PetModel, completion: @escaping (Result<URL, Error>) -> Void) {
+        // まず対象のペットレコードを取得
         let recordID = CKRecord.ID(recordName: pet.id.uuidString,
                                    zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
                                                            ownerName: CKCurrentUserDefaultName))
@@ -511,15 +529,24 @@ class CloudKitManager {
                                             userInfo: [NSLocalizedDescriptionKey: "ペットレコードが見つかりませんでした"])))
                 return
             }
+            
+            // 共有レコードを作成
             let share = CKShare(rootRecord: record)
+            
+            // 共有設定
             share[CKShare.SystemFieldKey.title] = "\(pet.name)のケア共有" as CKRecordValue
+            
+            // 権限設定 - デフォルトで読み書き権限に
+            share.publicPermission = .readWrite
+            
+            // 保存操作
             let modifyOperation = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
-            modifyOperation.perRecordProgressBlock = { (_ record: CKRecord, progress: Double) -> Void in }
-            // perRecordCompletionBlock は非推奨のため削除
+            
             modifyOperation.modifyRecordsResultBlock = { (result: Result<Void, Error>) -> Void in
                 switch result {
                 case .success:
                     if let shareURL = share.url {
+                        // 成功した場合、共有URLを返す
                         completion(.success(shareURL))
                     } else {
                         completion(.failure(NSError(domain: "CloudKitManager", code: 3,
@@ -529,31 +556,36 @@ class CloudKitManager {
                     completion(.failure(error))
                 }
             }
+            
             self.privateDatabase.add(modifyOperation)
         }
     }
     
     func acceptShareInvitation(from url: URL, completion: @escaping (Result<Void, Error>) -> Void) {
-        self.container.fetchShareMetadata(with: url) { (metadata: CKShare.Metadata?, error: Error?) -> Void in
+        container.fetchShareMetadata(with: url) { (metadata: CKShare.Metadata?, error: Error?) -> Void in
             if let error = error {
                 completion(.failure(error))
                 return
             }
+            
             guard let metadata = metadata else {
                 completion(.failure(NSError(domain: "CloudKitManager", code: 0,
                                             userInfo: [NSLocalizedDescriptionKey: "無効な共有URLです"])))
                 return
             }
-            let op = CKAcceptSharesOperation(shareMetadatas: [metadata])
-            op.perShareResultBlock = { (metadata: CKShare.Metadata, result: Result<CKShare, Error>) -> Void in
+            
+            let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
+            
+            operation.perShareResultBlock = { (metadata: CKShare.Metadata, result: Result<CKShare, Error>) -> Void in
                 switch result {
                 case .success(let share):
-                    print("Share accepted successfully: \(share)")
+                    print("共有の受け入れに成功しました: \(share)")
                 case .failure(let error):
-                    print("Error accepting share: \(error)")
+                    print("共有の受け入れエラー: \(error)")
                 }
             }
-            op.acceptSharesResultBlock = { (result: Result<Void, Error>) -> Void in
+            
+            operation.acceptSharesResultBlock = { (result: Result<Void, Error>) -> Void in
                 switch result {
                 case .success:
                     completion(.success(()))
@@ -561,45 +593,92 @@ class CloudKitManager {
                     completion(.failure(error))
                 }
             }
-            self.container.add(op)
+            
+            self.container.add(operation)
         }
     }
     
     func fetchShareParticipants(for record: CKRecord, completion: @escaping (Result<[String], Error>) -> Void) {
-        guard record.share != nil else {
+        guard let share = record.share else {
             completion(.success([]))
             return
         }
-        // 仮実装：実際は CKShare の API 等を用いて参加者情報を取得する
-        let participants: [String] = []
-        completion(.success(participants))
+        
+        privateDatabase.fetch(withRecordID: share.recordID) { (fetchedRecord: CKRecord?, error: Error?) -> Void in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let fetchedShare = fetchedRecord as? CKShare else {
+                completion(.success([]))
+                return
+            }
+            
+            // 参加者IDのリストを作成
+            var participantIDs: [String] = []
+
+            for participant in fetchedShare.participants {
+                if let userID = participant.userIdentity.userRecordID?.recordName {
+                    participantIDs.append(userID)
+                }
+            }
+            
+            completion(.success(participantIDs))
+        }
     }
     
     func updateSharePermissions(for pet: PetModel, participantEmail: String, permission: CKShare.ParticipantPermission, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let shareURLString = pet.shareURL?.absoluteString else {
+            completion(.failure(NSError(domain: "CloudKitManager", code: 4,
+                                        userInfo: [NSLocalizedDescriptionKey: "共有URLがありません"])))
+            return
+        }
+        
         let recordID = CKRecord.ID(recordName: pet.id.uuidString,
                                    zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
                                                            ownerName: CKCurrentUserDefaultName))
+        
         privateDatabase.fetch(withRecordID: recordID) { [weak self] (record: CKRecord?, error: Error?) -> Void in
             if let error = error {
                 completion(.failure(error))
                 return
             }
-            guard let record = record, let shareReference = record.share else {
+            
+            guard let self = self,
+                  let record = record,
+                  let shareReference = record.share else {
                 completion(.failure(NSError(domain: "CloudKitManager", code: 5,
                                             userInfo: [NSLocalizedDescriptionKey: "共有レコードが見つかりませんでした"])))
                 return
             }
-            self?.privateDatabase.fetch(withRecordID: shareReference.recordID) { (fetchedRecord: CKRecord?, error: Error?) -> Void in
+            
+            self.privateDatabase.fetch(withRecordID: shareReference.recordID) { (fetchedRecord: CKRecord?, error: Error?) -> Void in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
+                
                 guard let share = fetchedRecord as? CKShare else {
                     completion(.failure(NSError(domain: "CloudKitManager", code: 5,
                                                 userInfo: [NSLocalizedDescriptionKey: "共有レコードの変換に失敗しました"])))
                     return
                 }
+                
+                // ここで参加者の権限を更新
+                for participant in share.participants {
+                    // メールアドレスの取得方法
+                    let email = participant.userIdentity.lookupInfo?.emailAddress
+                    
+                    if email == participantEmail {
+                        participant.permission = permission
+                        break
+                    }
+                }
+                
+                // 変更を保存
                 let operation = CKModifyRecordsOperation(recordsToSave: [share], recordIDsToDelete: nil)
+                
                 operation.modifyRecordsResultBlock = { (result: Result<Void, Error>) -> Void in
                     switch result {
                     case .success:
@@ -608,65 +687,269 @@ class CloudKitManager {
                         completion(.failure(error))
                     }
                 }
-                self?.privateDatabase.add(operation)
+                
+                self.privateDatabase.add(operation)
             }
         }
     }
-    
     func removeShare(for pet: PetModel, completion: @escaping (Result<Void, Error>) -> Void) {
-        let recordID = CKRecord.ID(recordName: pet.id.uuidString,
-                                   zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
-                                                           ownerName: CKCurrentUserDefaultName))
-        privateDatabase.fetch(withRecordID: recordID) { [weak self] (record: CKRecord?, error: Error?) -> Void in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            guard let record = record, let shareReference = record.share else {
-                completion(.failure(NSError(domain: "CloudKitManager", code: 8,
-                                            userInfo: [NSLocalizedDescriptionKey: "共有レコードが見つかりませんでした"])))
-                return
-            }
-            self?.privateDatabase.fetch(withRecordID: shareReference.recordID) { (fetchedRecord: CKRecord?, error: Error?) -> Void in
+            let recordID = CKRecord.ID(recordName: pet.id.uuidString,
+                                       zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
+                                                               ownerName: CKCurrentUserDefaultName))
+            privateDatabase.fetch(withRecordID: recordID) { [weak self] (record: CKRecord?, error: Error?) -> Void in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
-                guard let share = fetchedRecord as? CKShare else {
+                guard let record = record, let shareReference = record.share else {
                     completion(.failure(NSError(domain: "CloudKitManager", code: 8,
-                                                userInfo: [NSLocalizedDescriptionKey: "共有レコードの変換に失敗しました"])))
+                                                userInfo: [NSLocalizedDescriptionKey: "共有レコードが見つかりませんでした"])))
                     return
                 }
-                let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [share.recordID])
-                operation.modifyRecordsResultBlock = { (result: Result<Void, Error>) -> Void in
-                    switch result {
-                    case .success:
-                        completion(.success(()))
-                    case .failure(let error):
+                self?.privateDatabase.fetch(withRecordID: shareReference.recordID) { (fetchedRecord: CKRecord?, error: Error?) -> Void in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    guard let share = fetchedRecord as? CKShare else {
+                        completion(.failure(NSError(domain: "CloudKitManager", code: 8,
+                                                    userInfo: [NSLocalizedDescriptionKey: "共有レコードの変換に失敗しました"])))
+                        return
+                    }
+                    
+                    // 共有を削除
+                    let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [share.recordID])
+                    operation.modifyRecordsResultBlock = { (result: Result<Void, Error>) -> Void in
+                        switch result {
+                        case .success:
+                            completion(.success(()))
+                        case .failure(let error):
+                            completion(.failure(error))
+                        }
+                    }
+                    self?.privateDatabase.add(operation)
+                }
+            }
+        }
+        
+        // MARK: - ケアログ関連操作
+        func saveCareLog(_ careLog: CareLogModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
+            let record = careLog.toCloudKitRecord()
+            privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
+                if let error = error {
+                    completion(.failure(error))
+                } else if let record = record {
+                    completion(.success(record.recordID))
+                } else {
+                    completion(.failure(NSError(domain: "CloudKitManager", code: 0,
+                                                userInfo: [NSLocalizedDescriptionKey: "ケアログの保存に失敗しました"])))
+                }
+            }
+        }
+        
+        // この関数を追加 - 特定のペットのケア記録を取得
+        func fetchCareLogs(for petId: UUID, completion: @escaping (Result<[CareLogModel], Error>) -> Void) {
+            let predicate = NSPredicate(format: "petId == %@", petId.uuidString)
+            let query = CKQuery(recordType: "CareLog", predicate: predicate)
+            query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+            
+            let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.careZoneName, ownerName: CKCurrentUserDefaultName)
+            let queryOperation = CKQueryOperation(query: query)
+            queryOperation.zoneID = zoneID
+            
+            var records: [CKRecord] = []
+            queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
+                switch result {
+                case .success(let record):
+                    records.append(record)
+                case .failure(let error):
+                    print("Error fetching care log record: \(error)")
+                }
+            }
+            
+            queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) -> Void in
+                guard let self = self else { return }
+                switch result {
+                case .success(_):
+                    if records.isEmpty {
+                        // プライベートDBに記録がない場合、共有DBも確認する
+                        self.fetchSharedCareLogs(for: petId, completion: completion)
+                        return
+                    }
+                    
+                    let group = DispatchGroup()
+                    var careLogs: [CareLogModel] = []
+                    var fetchErrors: [Error] = []
+                    
+                    for record in records {
+                        group.enter()
+                        self.careLogModelFromRecord(record) { (result: Result<CareLogModel?, Error>) in
+                            switch result {
+                            case .success(let careLogModel):
+                                if let model = careLogModel {
+                                    careLogs.append(model)
+                                }
+                            case .failure(let error):
+                                fetchErrors.append(error)
+                            }
+                            group.leave()
+                        }
+                    }
+                    
+                    group.notify(queue: .main) {
+                        if !fetchErrors.isEmpty {
+                            completion(.failure(fetchErrors.first!))
+                        } else {
+                            // 共有DBからも取得して結合
+                            self.fetchSharedCareLogs(for: petId) { (sharedResult: Result<[CareLogModel], Error>) in
+                                switch sharedResult {
+                                case .success(let sharedLogs):
+                                    var combinedLogs = careLogs
+                                    for sharedLog in sharedLogs {
+                                        if !combinedLogs.contains(where: { $0.id == sharedLog.id }) {
+                                            combinedLogs.append(sharedLog)
+                                        }
+                                    }
+                                    // タイムスタンプの降順で並べ替え
+                                    combinedLogs.sort { $0.timestamp > $1.timestamp }
+                                    completion(.success(combinedLogs))
+                                case .failure(_):
+                                    // 共有DBからの取得に失敗しても、プライベートDBのログは返す
+                                    careLogs.sort { $0.timestamp > $1.timestamp }
+                                    completion(.success(careLogs))
+                                }
+                            }
+                        }
+                    }
+                case .failure(let error):
+                    print("Error fetching care logs: \(error)")
+                    self.fetchSharedCareLogs(for: petId, completion: completion)
+                }
+            }
+            
+            privateDatabase.add(queryOperation)
+        }
+        
+        // 共有データベースからケア記録を取得
+        private func fetchSharedCareLogs(for petId: UUID, completion: @escaping (Result<[CareLogModel], Error>) -> Void) {
+            let predicate = NSPredicate(format: "petId == %@", petId.uuidString)
+            let query = CKQuery(recordType: "CareLog", predicate: predicate)
+            query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+            
+            let queryOperation = CKQueryOperation(query: query)
+            
+            var records: [CKRecord] = []
+            queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
+                switch result {
+                case .success(let record):
+                    records.append(record)
+                case .failure(let error):
+                    print("Error fetching shared care log record: \(error)")
+                }
+            }
+            
+            queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) -> Void in
+                guard let self = self else { return }
+                switch result {
+                case .success(_):
+                    if records.isEmpty {
+                        DispatchQueue.main.async {
+                            completion(.success([]))
+                        }
+                        return
+                    }
+                    
+                    let group = DispatchGroup()
+                    var careLogs: [CareLogModel] = []
+                    var fetchErrors: [Error] = []
+                    
+                    for record in records {
+                        group.enter()
+                        self.careLogModelFromRecord(record) { (result: Result<CareLogModel?, Error>) in
+                            switch result {
+                            case .success(let careLogModel):
+                                if let model = careLogModel {
+                                    careLogs.append(model)
+                                }
+                            case .failure(let error):
+                                fetchErrors.append(error)
+                            }
+                            group.leave()
+                        }
+                    }
+                    
+                    group.notify(queue: .main) {
+                        if !fetchErrors.isEmpty {
+                            completion(.failure(fetchErrors.first!))
+                        } else {
+                            // タイムスタンプの降順で並べ替え
+                            careLogs.sort { $0.timestamp > $1.timestamp }
+                            completion(.success(careLogs))
+                        }
+                    }
+                case .failure(let error):
+                    DispatchQueue.main.async {
                         completion(.failure(error))
                     }
                 }
-                self?.privateDatabase.add(operation)
             }
+            
+            sharedDatabase.add(queryOperation)
         }
-    }
-    
-    // MARK: - ケアログ関連操作
-    func saveCareLog(_ careLog: CareLogModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        let record = careLog.toCloudKitRecord()
-        privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
-            if let error = error {
-                completion(.failure(error))
-            } else if let record = record {
-                completion(.success(record.recordID))
-            } else {
-                completion(.failure(NSError(domain: "CloudKitManager", code: 0,
-                                            userInfo: [NSLocalizedDescriptionKey: "ケアログの保存に失敗しました"])))
+        
+        // CKRecordからCareLogModelへの変換
+        private func careLogModelFromRecord(_ record: CKRecord, completion: @escaping (Result<CareLogModel?, Error>) -> Void) {
+            guard let idString = record["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  let type = record["type"] as? String,
+                  let timestamp = record["timestamp"] as? Date else {
+                completion(.failure(NSError(domain: "CloudKitManager", code: 1,
+                                            userInfo: [NSLocalizedDescriptionKey: "ケアログレコードの変換に失敗しました"])))
+                return
             }
+            
+            let notes = record["notes"] as? String ?? ""
+            let performedBy = record["performedBy"] as? String ?? ""
+            let isCompleted = record["isCompleted"] as? Bool ?? true
+            
+            var petId: UUID? = nil
+            if let petIdString = record["petId"] as? String, let uuid = UUID(uuidString: petIdString) {
+                petId = uuid
+            }
+            
+            var userProfileID: UUID? = nil
+            if let userProfileIDString = record["userProfileID"] as? String, let uuid = UUID(uuidString: userProfileIDString) {
+                userProfileID = uuid
+            }
+            
+            var assignedUserProfileID: UUID? = nil
+            if let assignedUserProfileIDString = record["assignedUserProfileID"] as? String, let uuid = UUID(uuidString: assignedUserProfileIDString) {
+                assignedUserProfileID = uuid
+            }
+            
+            let scheduledDate = record["scheduledDate"] as? Date
+            let isScheduled = record["isScheduled"] as? Bool ?? false
+            
+            let cloudKitRecordID = "\(Constants.CloudKit.careZoneName):\(record.recordID.recordName)"
+            var careLogModel = CareLogModel(
+                type: type,
+                notes: notes,
+                performedBy: performedBy,
+                petId: petId,
+                userProfileID: userProfileID,
+                isScheduled: isScheduled,
+                scheduledDate: scheduledDate,
+                assignedUserProfileID: assignedUserProfileID
+            )
+            
+            careLogModel.id = id
+            careLogModel.timestamp = timestamp
+            careLogModel.isCompleted = isCompleted
+            careLogModel.cloudKitRecordID = cloudKitRecordID
+            
+            completion(.success(careLogModel))
         }
-    }
-    
-    // MARK: - ユーザーフレンドリーな共有UI
+        
     func presentSharingUI(for pet: PetModel, from viewController: UIViewController, completion: @escaping (Result<Void, Error>) -> Void) {
         let recordID = CKRecord.ID(recordName: pet.id.uuidString,
                                    zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName,
@@ -681,17 +964,24 @@ class CloudKitManager {
                                             userInfo: [NSLocalizedDescriptionKey: "ペットレコードが見つかりませんでした"])))
                 return
             }
+            
             if let shareReference = record.share {
+                // 既存の共有がある場合
                 self.privateDatabase.fetch(withRecordID: shareReference.recordID) { [weak self] (fetchedRecord: CKRecord?, error: Error?) -> Void in
-                    var share: CKShare
+                    guard let self = self else { return }
+                    
+                    let share: CKShare
                     if let fetchedShare = fetchedRecord as? CKShare {
                         share = fetchedShare
                     } else {
+                        // 既存の共有が取得できない場合は新規作成
                         share = CKShare(rootRecord: record)
                         share[CKShare.SystemFieldKey.title] = "\(pet.name)のケア共有" as CKRecordValue
+                        share.publicPermission = .readWrite
                     }
+                    
                     DispatchQueue.main.async {
-                        let sharingController = UICloudSharingController(share: share, container: self!.container)
+                        let sharingController = UICloudSharingController(share: share, container: self.container)
                         sharingController.delegate = viewController as? UICloudSharingControllerDelegate
                         sharingController.availablePermissions = [.allowPrivate, .allowReadWrite, .allowReadOnly]
                         viewController.present(sharingController, animated: true) {
@@ -700,8 +990,11 @@ class CloudKitManager {
                     }
                 }
             } else {
+                // 新規共有作成
                 let share = CKShare(rootRecord: record)
                 share[CKShare.SystemFieldKey.title] = "\(pet.name)のケア共有" as CKRecordValue
+                share.publicPermission = .readWrite
+                
                 DispatchQueue.main.async {
                     let sharingController = UICloudSharingController(share: share, container: self.container)
                     sharingController.delegate = viewController as? UICloudSharingControllerDelegate
@@ -713,22 +1006,230 @@ class CloudKitManager {
             }
         }
     }
-}
+    }
 
-// MARK: - CareViewModel 用の拡張
-// saveCareSchedule はここにのみ定義（重複定義を防止）
-extension CloudKitManager {
-    func saveCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        let record = schedule.toCloudKitRecord()
-        privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
-            if let error = error {
-                completion(.failure(error))
-            } else if let record = record {
-                completion(.success(record.recordID))
-            } else {
-                completion(.failure(NSError(domain: "CloudKitManager", code: 0,
-                                            userInfo: [NSLocalizedDescriptionKey: "スケジュールの保存に失敗しました"])))
+    // MARK: - CareViewModel 用の拡張
+    extension CloudKitManager {
+        func saveCareSchedule(_ schedule: CareScheduleModel, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
+            let record = schedule.toCloudKitRecord()
+            privateDatabase.save(record) { (record: CKRecord?, error: Error?) -> Void in
+                if let error = error {
+                    completion(.failure(error))
+                } else if let record = record {
+                    completion(.success(record.recordID))
+                } else {
+                    completion(.failure(NSError(domain: "CloudKitManager", code: 0,
+                                                userInfo: [NSLocalizedDescriptionKey: "スケジュールの保存に失敗しました"])))
+                }
             }
         }
+        
+        // ケアスケジュールの取得
+        func fetchCareSchedules(for petId: UUID, completion: @escaping (Result<[CareScheduleModel], Error>) -> Void) {
+            let predicate = NSPredicate(format: "petId == %@", petId.uuidString)
+            let query = CKQuery(recordType: "CareSchedule", predicate: predicate)
+            query.sortDescriptors = [NSSortDescriptor(key: "scheduledDate", ascending: true)]
+            
+            let zoneID = CKRecordZone.ID(zoneName: Constants.CloudKit.careZoneName, ownerName: CKCurrentUserDefaultName)
+            let queryOperation = CKQueryOperation(query: query)
+            queryOperation.zoneID = zoneID
+            
+            var records: [CKRecord] = []
+            queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
+                switch result {
+                case .success(let record):
+                    records.append(record)
+                case .failure(let error):
+                    print("Error fetching care schedule record: \(error)")
+                }
+            }
+            
+            queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) -> Void in
+                guard let self = self else { return }
+                switch result {
+                case .success(_):
+                    if records.isEmpty {
+                        // プライベートDBに記録がない場合、共有DBも確認する
+                        self.fetchSharedCareSchedules(for: petId, completion: completion)
+                        return
+                    }
+                    
+                    let group = DispatchGroup()
+                    var careSchedules: [CareScheduleModel] = []
+                    var fetchErrors: [Error] = []
+                    
+                    for record in records {
+                        group.enter()
+                        self.careScheduleModelFromRecord(record) { (result: Result<CareScheduleModel?, Error>) in
+                            switch result {
+                            case .success(let model):
+                                if let model = model {
+                                    careSchedules.append(model)
+                                }
+                            case .failure(let error):
+                                fetchErrors.append(error)
+                            }
+                            group.leave()
+                        }
+                    }
+                    
+                    group.notify(queue: .main) {
+                        if !fetchErrors.isEmpty {
+                            completion(.failure(fetchErrors.first!))
+                        } else {
+                            // 共有DBからも取得して結合
+                            self.fetchSharedCareSchedules(for: petId) { (sharedResult: Result<[CareScheduleModel], Error>) in
+                                switch sharedResult {
+                                case .success(let sharedSchedules):
+                                    var combinedSchedules = careSchedules
+                                    for sharedSchedule in sharedSchedules {
+                                        if !combinedSchedules.contains(where: { $0.id == sharedSchedule.id }) {
+                                            combinedSchedules.append(sharedSchedule)
+                                        }
+                                    }
+                                    // 日付の昇順で並べ替え
+                                    combinedSchedules.sort { $0.scheduledDate < $1.scheduledDate }
+                                    completion(.success(combinedSchedules))
+                                case .failure(_):
+                                    // 共有DBからの取得に失敗しても、プライベートDBのスケジュールは返す
+                                    careSchedules.sort { $0.scheduledDate < $1.scheduledDate }
+                                    completion(.success(careSchedules))
+                                }
+                            }
+                        }
+                    }
+                case .failure(let error):
+                    print("Error fetching care schedules: \(error)")
+                    self.fetchSharedCareSchedules(for: petId, completion: completion)
+                }
+            }
+            
+            privateDatabase.add(queryOperation)
+        }
+        
+        // 共有データベースからケアスケジュールを取得
+        private func fetchSharedCareSchedules(for petId: UUID, completion: @escaping (Result<[CareScheduleModel], Error>) -> Void) {
+            let predicate = NSPredicate(format: "petId == %@", petId.uuidString)
+            let query = CKQuery(recordType: "CareSchedule", predicate: predicate)
+            query.sortDescriptors = [NSSortDescriptor(key: "scheduledDate", ascending: true)]
+            
+            let queryOperation = CKQueryOperation(query: query)
+            
+            var records: [CKRecord] = []
+            queryOperation.recordMatchedBlock = { (recordID: CKRecord.ID, result: Result<CKRecord, Error>) -> Void in
+                switch result {
+                case .success(let record):
+                    records.append(record)
+                case .failure(let error):
+                    print("Error fetching shared care schedule record: \(error)")
+                }
+            }
+            
+            queryOperation.queryResultBlock = { [weak self] (result: Result<CKQueryOperation.Cursor?, Error>) -> Void in
+                guard let self = self else { return }
+                switch result {
+                case .success(_):
+                    if records.isEmpty {
+                        DispatchQueue.main.async {
+                            completion(.success([]))
+                        }
+                        return
+                    }
+                    
+                    let group = DispatchGroup()
+                    var careSchedules: [CareScheduleModel] = []
+                    var fetchErrors: [Error] = []
+                    
+                    for record in records {
+                        group.enter()
+                        self.careScheduleModelFromRecord(record) { (result: Result<CareScheduleModel?, Error>) in
+                            switch result {
+                            case .success(let model):
+                                if let model = model {
+                                    careSchedules.append(model)
+                                }
+                            case .failure(let error):
+                                fetchErrors.append(error)
+                            }
+                            group.leave()
+                        }
+                    }
+                    
+                    group.notify(queue: .main) {
+                        if !fetchErrors.isEmpty {
+                            completion(.failure(fetchErrors.first!))
+                        } else {
+                            // 日付の昇順で並べ替え
+                            careSchedules.sort { $0.scheduledDate < $1.scheduledDate }
+                            completion(.success(careSchedules))
+                        }
+                    }
+                case .failure(let error):
+                    DispatchQueue.main.async {
+                        completion(.failure(error))
+                    }
+                }
+            }
+            
+            sharedDatabase.add(queryOperation)
+        }
+        
+        // CKRecordからCareScheduleModelへの変換
+        private func careScheduleModelFromRecord(_ record: CKRecord, completion: @escaping (Result<CareScheduleModel?, Error>) -> Void) {
+            guard let idString = record["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  let type = record["type"] as? String,
+                  let scheduledDate = record["scheduledDate"] as? Date else {
+                completion(.failure(NSError(domain: "CloudKitManager", code: 1,
+                                            userInfo: [NSLocalizedDescriptionKey: "ケアスケジュールレコードの変換に失敗しました"])))
+                return
+            }
+            
+            let notes = record["notes"] as? String ?? ""
+            let isCompleted = record["isCompleted"] as? Bool ?? false
+            let createdAt = record["createdAt"] as? Date ?? Date()
+            let updatedAt = record["updatedAt"] as? Date ?? Date()
+            
+            var petId: UUID? = nil
+            if let petIdString = record["petId"] as? String, let uuid = UUID(uuidString: petIdString) {
+                petId = uuid
+            }
+            
+            var assignedUserProfileID: UUID? = nil
+            if let assignedUserProfileIDString = record["assignedUserProfileID"] as? String, let uuid = UUID(uuidString: assignedUserProfileIDString) {
+                assignedUserProfileID = uuid
+            }
+            
+            var completedBy: UUID? = nil
+            if let completedByString = record["completedBy"] as? String, let uuid = UUID(uuidString: completedByString) {
+                completedBy = uuid
+            }
+            
+            var createdBy: UUID? = nil
+            if let createdByString = record["createdBy"] as? String, let uuid = UUID(uuidString: createdByString) {
+                createdBy = uuid
+            }
+            
+            let completedDate = record["completedDate"] as? Date
+            
+            let cloudKitRecordID = "\(Constants.CloudKit.careZoneName):\(record.recordID.recordName)"
+            var careScheduleModel = CareScheduleModel(
+                type: type,
+                assignedUserProfileID: assignedUserProfileID,
+                scheduledDate: scheduledDate,
+                notes: notes,
+                createdBy: createdBy,
+                petId: petId
+            )
+            
+            careScheduleModel.id = id
+            careScheduleModel.isCompleted = isCompleted
+            careScheduleModel.completedBy = completedBy
+            careScheduleModel.completedDate = completedDate
+            careScheduleModel.createdAt = createdAt
+            careScheduleModel.updatedAt = updatedAt
+            careScheduleModel.cloudKitRecordID = cloudKitRecordID
+            
+            completion(.success(careScheduleModel))
+        }
     }
-}

@@ -151,4 +151,43 @@ extension UIColor {
         
         return String(format: "#%02lX%02lX%02lX", lround(Double(r) * 255), lround(Double(g) * 255), lround(Double(b) * 255))
     }
+    
+    // checkAndCreateCurrentUser メソッド内で現在のユーザー名を適切に設定
+    func checkAndCreateCurrentUser() {
+        if currentUser == nil {
+            isLoading = true
+            
+            cloudKitManager.fetchCurrentUserID { [weak self] result in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let iCloudID):
+                        if let existingUser = self.userProfiles.first(where: { $0.iCloudID == iCloudID }) {
+                            // 既存ユーザーを現在のユーザーとして設定
+                            self.setCurrentUser(existingUser.id)
+                        } else {
+                            // ユーザー名をデバイス名ではなく、「ユーザー」などに変更
+                            let userName = "ユーザー" // デバイス名ではなく固定値または入力を促す
+                            let randomColor = self.generateRandomColor()
+                            
+                            let newUser = UserProfileModel(
+                                name: userName,
+                                iCloudID: iCloudID,
+                                colorHex: randomColor,
+                                isCurrentUser: true
+                            )
+                            
+                            self.saveUserProfile(newUser)
+                        }
+                    case .failure(let error):
+                        print("Error fetching iCloud user ID: \(error)")
+                        // エラーハンドリング
+                    }
+                    
+                    self.isLoading = false
+                }
+            }
+        }
+    }
 }

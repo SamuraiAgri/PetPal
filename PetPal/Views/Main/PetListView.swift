@@ -241,6 +241,25 @@ struct PetListView: View {
         )
     }
     
+    // EnhancedPetCardViewのonShareアクションで呼び出す処理
+    func sharePet(_ pet: PetModel) {
+        petToShare = pet
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            CloudKitManager().presentSharingUI(for: pet, from: rootVC) { result in
+                switch result {
+                case .success:
+                    print("共有UIが正常に表示されました")
+                case .failure(let error):
+                    sharingError = error.localizedDescription
+                    showingErrorAlert = true
+                }
+            }
+        }
+    }
+    }
+    
     // MARK: - ペットリストコンテンツ
     private var petListContent: some View {
         ScrollView {
