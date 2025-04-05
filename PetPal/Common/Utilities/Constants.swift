@@ -50,7 +50,7 @@ struct Constants {
     
     // MARK: - CloudKit
     struct CloudKit {
-        static let containerIdentifier = "iCloud.com.samuraiagri.PetPal"
+        static let containerIdentifier = "iCloud.com.oushin.PetPal"
         static let petZoneName = "PetZone"
         static let userZoneName = "UserZone"
         static let careZoneName = "CareZone"
