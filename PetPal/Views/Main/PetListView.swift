@@ -12,17 +12,6 @@ struct UserProfileEditView: View {
     }
 }
 
-// スタブ実装（最低限の実装） EnhancedPetCardView
-struct EnhancedPetCardView: View {
-    let pet: PetModel
-    let isSelected: Bool
-    let onShare: () -> Void
-    
-    var body: some View {
-        Text("EnhancedPetCardView: \(pet.name)")
-    }
-}
-
 // Color 拡張（SwiftUI 用）
 extension Color {
     func toHex() -> String? {
@@ -361,4 +350,3 @@ struct PetListView: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-}

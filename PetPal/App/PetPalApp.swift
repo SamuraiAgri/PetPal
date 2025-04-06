@@ -51,17 +51,5 @@ struct PetPalApp: App {
                 }
             }
         }
-        
-        // テストレコードを作成
-        let testRecord = CKRecord(recordType: "TestRecord", zoneID: CKRecordZone.ID(zoneName: Constants.CloudKit.petZoneName, ownerName: CKCurrentUserDefaultName))
-        testRecord["testField"] = "テストデータ" as CKRecordValue
-        
-        database.save(testRecord) { savedRecord, error in
-            if let error = error {
-                print("❌ テストレコードの保存に失敗: \(error.localizedDescription)")
-            } else {
-                print("✅ テストレコードを保存しました")
-            }
-        }
     }
 }
